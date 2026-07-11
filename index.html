@@ -489,9 +489,6 @@
           <button class="bw-toggle" id="weightReminderToggle">Off</button>
         </div>
       </div>
-      <div style="text-align:center;margin:-6px 0 14px" id="testNotifyWrap">
-        <button class="link" id="testNotifyBtn" style="color:var(--accent)">Send test notification</button>
-      </div>
       <div class="card">
         <h2>Data</h2>
         <button class="btn ghost" id="exportBtn" style="width:100%">Export CSV</button>
@@ -3708,7 +3705,6 @@ function renderProfile(){
   }
   renderReminderCard();
   renderWeightReminderCard();
-  renderTestNotifyLink();
 }
 
 /* ---------- workout reminders (web push) ---------- */
@@ -3794,7 +3790,7 @@ async function toggleReminders(){
     await maybeRemovePush();
     toast("Workout reminders disabled");
   }
-  save(); renderReminderCard(); renderTestNotifyLink();
+  save(); renderReminderCard();
 }
 function renderWeightReminderCard(){
   const card=$("#weightReminderCard"); if(!card) return;
@@ -3822,22 +3818,7 @@ async function toggleWeightReminder(){
     await maybeRemovePush();
     toast("Weight reminder disabled");
   }
-  save(); renderWeightReminderCard(); renderTestNotifyLink();
-}
-function renderTestNotifyLink(){
-  const wrap=$("#testNotifyWrap"); if(!wrap) return;
-  const pf=data.profile||{};
-  const show = socialOn() && reminderPushSupported() && ((pf.reminder&&pf.reminder.enabled)||(pf.weightReminder&&pf.weightReminder.enabled));
-  wrap.style.display = show ? "" : "none";
-}
-async function sendTestNotification(){
-  if(!sb || !sbUser) return;
-  try{
-    const { data:res, error } = await sb.functions.invoke("send-test-notification");
-    if(error) throw error;
-    if(res && res.sent>0) toast(`Test notification sent (${res.sent}) ✓`);
-    else toast("No devices subscribed yet — enable a reminder first");
-  }catch(e){ console.warn("test notify failed", e); toast("Couldn't send test notification"); }
+  save(); renderWeightReminderCard();
 }
 
 /* ---------- exercises ---------- */
@@ -4300,7 +4281,6 @@ if($("#openSettingsBtn")) $("#openSettingsBtn").onclick=()=>{ $("#pfMainView").c
 if($("#settingsBack")) $("#settingsBack").onclick=()=>{ $("#pfSettingsView").classList.add("hidden"); $("#pfMainView").classList.remove("hidden"); };
 if($("#reminderToggle")) $("#reminderToggle").onclick=toggleReminders;
 if($("#weightReminderToggle")) $("#weightReminderToggle").onclick=toggleWeightReminder;
-if($("#testNotifyBtn")) $("#testNotifyBtn").onclick=sendTestNotification;
 if($("#weightReminderTime")) $("#weightReminderTime").onchange=()=>{
   const pf=data.profile||(data.profile={});
   const wr=pf.weightReminder; if(!wr||!wr.enabled) return;

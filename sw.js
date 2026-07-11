@@ -74,7 +74,7 @@ self.addEventListener("push", function (e) {
     self.registration.showNotification(data.title || "Iron Log", {
       body: data.body || "Time for your workout!",
       icon: "/icon-192.png",
-      badge: "/icon-192.png",
+      badge: "/icon-badge.png",
       tag: "workout-reminder"
     })
   );
