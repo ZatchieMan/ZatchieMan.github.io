@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "com.zatchie.ironlog",
+        "sha256_cert_fingerprints": ["FE:3F:39:39:B6:CF:13:4E:D9:16:43:A8:FD:8E:03:03:40:0B:11:23:16:50:B7:5E:2E:12:85:4E:24:2E:F1:F5"]
+      }
+    }]
