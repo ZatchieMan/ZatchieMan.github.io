@@ -269,13 +269,6 @@
   .pr-tile.top .pr-name{color:var(--accent)}
   .pr-edit{width:92px;text-align:center;font-family:"Roboto Mono",monospace;font-weight:700;font-size:20px;color:var(--accent);padding:6px 8px}
   .item-add{display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:6px;align-items:end;margin-top:8px}
-  .week-block{margin-bottom:12px}
-  .week-block .wk{font-family:"Barlow Condensed",sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.06em;font-size:14px;color:var(--muted);margin-bottom:6px}
-  .day-pills{display:flex;flex-wrap:wrap;gap:8px}
-  .day-pill{border:1px solid var(--line);background:var(--bg);color:var(--text);border-radius:20px;padding:8px 14px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:6px}
-  .day-pill:hover{border-color:var(--accent)}
-  .day-pill.done{background:var(--accent);color:#181510;border-color:var(--accent);font-weight:600}
-  .day-pill .tick{font-size:12px}
 
   .wd-picker{display:flex;gap:5px;margin:6px 0 10px}
   .wd-btn{flex:1;border:1px solid var(--line);background:var(--bg);color:var(--muted);border-radius:6px;padding:6px 0;font-size:11px;font-family:"Roboto Mono",monospace;cursor:pointer}
@@ -293,16 +286,24 @@
   .cal-mtitle{font-family:"Barlow Condensed",sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.06em;font-size:13px;color:var(--muted);margin-bottom:6px}
   .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
   .cal-dow{text-align:center;font-size:10px;color:var(--muted);padding-bottom:2px}
-  .cal-cell{position:relative;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--text);border-radius:6px}
+  .cal-cell{position:relative;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--text);border-radius:6px;border:1px solid transparent}
   .cal-cell.empty{visibility:hidden}
   .cal-cell.cal-today{outline:1px solid var(--accent);outline-offset:-1px}
-  .cal-cell.cal-upcoming{color:var(--text)}
-  .cal-cell.cal-done{color:var(--good)}
-  .cal-cell.cal-missed{color:var(--danger)}
+  .cal-cell.cal-upcoming{color:var(--text);border-color:var(--line)}
+  .cal-cell.cal-done{color:var(--good);border-color:var(--good)}
+  .cal-cell.cal-missed{color:var(--danger);border-color:var(--danger)}
+  .cal-cell.cal-clickable{cursor:pointer}
+  .cal-cell.cal-clickable:hover{background:var(--surface-2)}
   .cal-dot{position:absolute;bottom:2px;width:4px;height:4px;border-radius:50%;background:currentColor}
   .cal-legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin-top:4px}
   .cal-legend span{display:inline-flex;align-items:center;gap:5px}
   .cal-legend i{width:7px;height:7px;border-radius:50%;display:inline-block}
+  .wk-grid{display:grid;gap:5px;align-items:center}
+  .wk-cell-head{font-size:10px;color:var(--muted);text-align:center;text-transform:uppercase;letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 2px}
+  .wk-label{font-size:11px;color:var(--muted);font-family:"Roboto Mono",monospace}
+  .wk-cell{aspect-ratio:1;border:1px solid var(--line);border-radius:5px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--accent);min-height:22px}
+  .wk-cell:hover{border-color:var(--accent)}
+  .wk-cell.done{background:var(--accent);border-color:var(--accent);color:#181510;font-weight:700}
   .back{color:var(--muted);cursor:pointer;font-size:13px;margin-bottom:12px;display:inline-block}
   .back:hover{color:var(--accent)}
 
@@ -427,7 +428,6 @@
       <h2>Add exercise</h2>
       <div class="row">
         <div><label>Name</label><input id="newExName" placeholder="e.g. Back Squat"></div>
-        <div style="flex:0 0 84px"><label>Unit</label><select id="newExUnit"><option value="kg">kg</option><option value="lb">lb</option></select></div>
         <button class="btn" id="addExBtn">Add</button>
       </div>
     </div>
@@ -440,10 +440,16 @@
       <div class="card">
         <h2>Profile</h2>
         <div class="row">
-          <div><label>Bodyweight</label><span class="pr-input" style="display:flex;align-items:center;gap:8px"><input id="pfWeight" class="num-in" type="number" inputmode="decimal" step="0.1" placeholder="—"><span class="pr-unit">kg</span></span></div>
-          <div><label>Height</label><span class="pr-input" style="display:flex;align-items:center;gap:8px"><input id="pfHeight" class="num-in" type="number" inputmode="numeric" step="1" placeholder="—"><span class="pr-unit">cm</span></span></div>
+          <div><label>Bodyweight</label><span class="pr-input" style="display:flex;align-items:center;gap:8px"><input id="pfWeight" class="num-in" type="number" inputmode="decimal" step="0.1" placeholder="—"><span class="pr-unit" id="pfWeightUnit">kg</span></span></div>
+          <div><label>Height</label>
+            <span class="pr-input" id="pfHeightCmWrap" style="display:flex;align-items:center;gap:8px"><input id="pfHeight" class="num-in" type="number" inputmode="numeric" step="1" placeholder="—"><span class="pr-unit">cm</span></span>
+            <span class="pr-input" id="pfHeightFtWrap" style="display:none;align-items:center;gap:6px">
+              <input id="pfHeightFt" class="num-in" type="number" inputmode="numeric" step="1" placeholder="—" style="width:56px"><span class="pr-unit">ft</span>
+              <input id="pfHeightIn" class="num-in" type="number" inputmode="numeric" step="1" placeholder="—" style="width:56px"><span class="pr-unit">in</span>
+            </span>
+          </div>
         </div>
-        <div style="margin-top:12px"><label>Target weight</label><span class="pr-input" style="display:flex;align-items:center;gap:8px"><input id="pfTarget" class="num-in" type="number" inputmode="decimal" step="0.1" placeholder="—"><span class="pr-unit">kg</span></span></div>
+        <div style="margin-top:12px"><label>Target weight</label><span class="pr-input" style="display:flex;align-items:center;gap:8px"><input id="pfTarget" class="num-in" type="number" inputmode="decimal" step="0.1" placeholder="—"><span class="pr-unit" id="pfTargetUnit">kg</span></span></div>
         <div id="pfExtra" style="color:var(--muted);font-size:13px;margin-top:10px"></div>
         <div id="pfTargetBar" style="margin-top:12px"></div>
         <button class="btn" id="pfSave" style="width:100%;margin-top:14px">Save profile</button>
@@ -473,6 +479,25 @@
     </div>
     <div id="pfSettingsView" class="hidden">
       <span class="back" id="settingsBack">← Profile</span>
+      <div class="card">
+        <h2>Units</h2>
+        <div class="row">
+          <div>
+            <label>Weight</label>
+            <div class="wd-picker">
+              <button class="wd-btn" id="unitKgBtn" data-unit="kg">KG</button>
+              <button class="wd-btn" id="unitLbBtn" data-unit="lb">LB</button>
+            </div>
+          </div>
+          <div>
+            <label>Height</label>
+            <div class="wd-picker">
+              <button class="wd-btn" id="unitCmBtn" data-unit="cm">CM</button>
+              <button class="wd-btn" id="unitFtBtn" data-unit="ft">FT/IN</button>
+            </div>
+          </div>
+        </div>
+      </div>
       <div class="card" id="reminderCard" style="display:none">
         <div class="ex-menu-row">
           <div style="flex:1"><div class="name">Workout reminders</div><div class="meta" id="reminderStatus">Log a few more workouts to unlock this.</div></div>
@@ -2900,6 +2925,7 @@ function adoptData(obj){
   const sameOwner = data && data._owner === (sbUser ? sbUser.id : null);
   data = obj || {};
   data.exercises ||= []; data.logs ||= []; data.programs ||= []; data.prs ||= {}; data.profile ||= {};
+  migrateWeightUnit();
   if(sbUser) data._owner = sbUser.id;
   store.set(KEY, JSON.stringify(data));                  // persist without pushing
   if(!sameOwner){ active=null; store.del(AKEY); }         // switching accounts: don't inherit another user's in-progress workout
@@ -3093,14 +3119,37 @@ function load(){
   data.exercises ||= []; data.logs ||= []; data.programs ||= []; data.prs ||= {}; data.profile ||= {};
 }
 function save(){ data._updatedAt = Date.now(); store.set(KEY, JSON.stringify(data)); schedulePush(); }
+function migrateWeightUnit(){
+  if(data._weightUnitMigrated) return;
+  if(!data.profile.weightUnit) data.profile.weightUnit = "kg";
+  const lbIds = new Set(data.exercises.filter(e=>e.unit==="lb").map(e=>e.id));
+  if(lbIds.size){
+    data.logs.forEach(l=>{ if(lbIds.has(l.exerciseId)) l.sets.forEach(s=>{ if(typeof s.weight==="number") s.weight = Math.round(s.weight*KG_PER_LB*100)/100; }); });
+    if(typeof active!=="undefined" && active) active.exercises.forEach(ex=>{ if(lbIds.has(ex.exerciseId)) ex.sets.forEach(s=>{ const w=parseFloat(s.weight); if(!isNaN(w)) s.weight=String(Math.round(w*KG_PER_LB*100)/100); }); });
+  }
+  data.exercises.forEach(e=>{ delete e.unit; });
+  data._weightUnitMigrated = true;
+}
 
 function exName(id){ const e=data.exercises.find(x=>x.id===id); return e?e.name:"?"; }
-function exUnit(id){ const e=data.exercises.find(x=>x.id===id); return e?e.unit:"kg"; }
+const KG_PER_LB = 0.45359237;
+function weightUnit(){ return (data.profile && data.profile.weightUnit) || "kg"; }
+function toKg(v){ v=+v||0; return weightUnit()==="lb" ? Math.round(v*KG_PER_LB*100)/100 : v; }
+function fromKg(v){ v=+v||0; return weightUnit()==="lb" ? Math.round((v/KG_PER_LB)*10)/10 : Math.round(v*10)/10; }
+function exUnit(id){ return weightUnit(); } // id kept only for call-site compatibility — unit is now a single global setting
+const CM_PER_IN = 2.54;
+function heightUnit(){ return (data.profile && data.profile.heightUnit) || "cm"; }
+function cmToFtIn(cm){
+  let totalIn=Math.round((+cm||0)/CM_PER_IN);
+  let ft=Math.floor(totalIn/12), inch=totalIn-ft*12;
+  return {ft,inch};
+}
+function ftInToCm(ft,inch){ return Math.round(((+ft||0)*12+(+inch||0))*CM_PER_IN*10)/10; }
 function epley1RM(w,r){ return r>0 ? w*(1+r/30) : w; }
 function findOrCreateExercise(name){
   const n=(name||"").trim(); if(!n) return null;
   let e=data.exercises.find(x=>x.name.toLowerCase()===n.toLowerCase());
-  if(!e){ e={id:uid(),name:n,unit:"kg"}; data.exercises.push(e); }
+  if(!e){ e={id:uid(),name:n}; data.exercises.push(e); }
   return e.id;
 }
 function lastSessionFor(exId){
@@ -3108,7 +3157,7 @@ function lastSessionFor(exId){
   return ls.length?ls[0]:null;
 }
 function fmtSets(sets){
-  return `<span class="setbox-wrap">${sets.map(s=>`<span class="setbox${s.extra?" ex":""}">${s.weight}×${s.reps}</span>`).join("")}</span>`;
+  return `<span class="setbox-wrap">${sets.map(s=>`<span class="setbox${s.extra?" ex":""}">${fromKg(s.weight)}×${s.reps}</span>`).join("")}</span>`;
 }
 function groupItems(list){
   const g=[];
@@ -3145,7 +3194,7 @@ function exportCSV(){
   const dn=(pid,did)=>{const p=data.programs.find(x=>x.id===pid);if(!p)return"";const d=p.days.find(x=>x.id===did);return d?d.name:"";};
   const rows=[["date","program","day","exercise","unit","set","weight","reps","extra_set","bonus"]];
   [...data.logs].sort((a,b)=>a.date.localeCompare(b.date)||a.id.localeCompare(b.id)).forEach(l=>{
-    l.sets.forEach((s,i)=>rows.push([l.date,pn(l.programId),dn(l.programId,l.dayId),exName(l.exerciseId),exUnit(l.exerciseId),i+1,s.weight,s.reps,s.extra?"yes":"",l.bonus?"yes":""]));
+    l.sets.forEach((s,i)=>rows.push([l.date,pn(l.programId),dn(l.programId,l.dayId),exName(l.exerciseId),exUnit(l.exerciseId),i+1,fromKg(s.weight),s.reps,s.extra?"yes":"",l.bonus?"yes":""]));
   });
   if(rows.length<2){ toast("Nothing to export yet"); return; }
   const csv=rows.map(r=>r.map(c=>{c=String(c);return /[",\n]/.test(c)?'"'+c.replace(/"/g,'""')+'"':c;}).join(",")).join("\n");
@@ -3259,9 +3308,10 @@ function targetBar(){
   const reached = (target<=start && cur<=target) || (target>=start && cur>=target);
   let pct = (target===start) ? 100 : Math.max(0, Math.min(100, (cur-start)/(target-start)*100));
   if(reached) pct=100;
-  const sub = reached ? "Target reached 🎉" : `${cur} kg now · ${Math.abs(target-cur).toFixed(1)} kg to go`;
+  const u=weightUnit();
+  const sub = reached ? "Target reached 🎉" : `${fromKg(cur)} ${u} now · ${fromKg(Math.abs(target-cur))} ${u} to go`;
   return `<div class="tgt">
-    <div class="tgt-head"><span>Goal ${target} kg</span><span class="tgt-pct">${Math.round(pct)}%</span></div>
+    <div class="tgt-head"><span>Goal ${fromKg(target)} ${u}</span><span class="tgt-pct">${Math.round(pct)}%</span></div>
     <div class="tgt-bar"><span style="width:${pct}%"></span></div>
     <div class="tgt-sub">${sub}</div>
   </div>`;
@@ -3287,14 +3337,16 @@ function renderWeighIn(){
   const card=$("#weighCard"); if(!card) return;
   const pf=data.profile||{}, wl=pf.weightLog||[], today=todayISO();
   const done=wl.find(e=>e.date===today);
+  const u=weightUnit();
   const top = done
-    ? `<div class="weigh-today"><div class="wt-label">Today's weight</div><div class="wt-value">${done.weight}<small>kg</small></div></div>`
+    ? `<div class="weigh-today"><div class="wt-label">Today's weight</div><div class="wt-value">${fromKg(done.weight)}<small>${u}</small></div></div>`
     : `<div class="weigh-today"><div class="wt-label">Weigh in for today</div>
-      <div class="weigh-entry"><input id="weighInput" class="num-in" type="number" inputmode="decimal" step="0.1" placeholder="${bodyweight()>0?bodyweight():'kg'}"><span class="pr-unit">kg</span><button class="btn" id="weighSave">Log</button></div></div>`;
+      <div class="weigh-entry"><input id="weighInput" class="num-in" type="number" inputmode="decimal" step="0.1" placeholder="${bodyweight()>0?fromKg(bodyweight()):u}"><span class="pr-unit">${u}</span><button class="btn" id="weighSave">Log</button></div></div>`;
   card.innerHTML = top + targetBar();
   if(!done){
     $("#weighSave").onclick=()=>{
-      const w=parseFloat($("#weighInput").value); if(isNaN(w)){ toast("Enter your weight"); return; }
+      const raw=parseFloat($("#weighInput").value); if(isNaN(raw)){ toast("Enter your weight"); return; }
+      const w=toKg(raw);
       const p=data.profile||(data.profile={}); p.weightLog=p.weightLog||[]; p.bodyweight=w;
       p.weightLog.push({date:today,weight:w});
       save(); renderWeighIn(); renderLevel(); renderProfile(); toast("Weight logged ✓");
@@ -3467,11 +3519,11 @@ function renderActive(){
       const rows = ex.sets.map((s,si)=>{
         const isExtra = si >= plan;
         const pvSet = ex.prev && ex.prev.sets[si];
-        const wph = pvSet ? pvSet.weight : "kg";
+        const wph = pvSet ? fromKg(pvSet.weight) : weightUnit();
         const rph = pvSet ? pvSet.reps : "reps";
         const prevCell = isExtra && !pvSet
           ? `<span class="extra-tag">extra</span>`
-          : `<span class="prev${pvSet&&pvSet.extra?' exset':''}">${pvSet?`${pvSet.weight}×${pvSet.reps}`:""}</span>`;
+          : `<span class="prev${pvSet&&pvSet.extra?' exset':''}">${pvSet?`${fromKg(pvSet.weight)}×${pvSet.reps}`:""}</span>`;
         return `<div class="set-row${isExtra?" extra":""}">
           <span class="set-n">${si+1}</span>
           <input class="num-in sm wo-in weight-in" data-ex="${ei}" data-set="${si}" data-f="weight" type="number" inputmode="decimal" step="0.1" placeholder="${wph}" value="${s.weight}">
@@ -3530,8 +3582,9 @@ function curTopWeight(ex){
 function updateDelta(ei){
   const ex=active&&active.exercises[ei]; if(!ex) return;
   const el=document.querySelector(`.delta[data-ex="${ei}"]`); if(!el) return;
-  const prev=prevTopWeight(ex), cur=curTopWeight(ex);
-  if(prev==null||cur==null){ el.textContent=""; el.className="delta"; return; }
+  const prevRaw=prevTopWeight(ex), cur=curTopWeight(ex);
+  if(prevRaw==null||cur==null){ el.textContent=""; el.className="delta"; return; }
+  const prev=fromKg(prevRaw); // ex.prev.sets are canonical kg; cur is the live typed value in the current display unit
   const d=Math.round((cur-prev)*10)/10;
   el.textContent = d>0?`+${d}`:(d<0?`${d}`:"±0");
   el.className = "delta "+(d>0?"up":(d<0?"down":"same"));
@@ -3574,7 +3627,7 @@ function computeFinishStats(newLogs, durSec){
     const myTop=Math.max.apply(null,l.sets.map(s=>(+s.weight||0)+add));
     let prevBest=0;
     data.logs.filter(x=>x.exerciseId===l.exerciseId).forEach(x=>{ const a=isBW(x.exerciseId)?bodyweightOn(x.date):0; x.sets.forEach(s=>{ const w=(+s.weight||0)+a; if(w>prevBest) prevBest=w; }); });
-    if(prevBest>0 && myTop>prevBest) prs.push({name:exName(l.exerciseId), w:myTop, u:exUnit(l.exerciseId)});
+    if(prevBest>0 && myTop>prevBest) prs.push({name:exName(l.exerciseId), w:fromKg(myTop), u:exUnit(l.exerciseId)});
   });
   return {me, volumeRecord, pace, paceRecord, prs, durSec};
 }
@@ -3589,11 +3642,11 @@ function showWorkoutSummary(prevLvl, newLvl, st){
     <h2 style="margin-top:0">Workout complete</h2>
     <div class="sum-grid">
       <div class="sum"><div class="k">Time</div><div class="v">${dur}</div></div>
-      <div class="sum"><div class="k">Volume</div><div class="v">${st.me.vol.toLocaleString()}<small> kg</small></div></div>
+      <div class="sum"><div class="k">Volume</div><div class="v">${fromKg(st.me.vol).toLocaleString()}<small> ${weightUnit()}</small></div></div>
       <div class="sum"><div class="k">Sets</div><div class="v">${st.me.sets}</div></div>
       <div class="sum"><div class="k">Reps</div><div class="v">${st.me.reps}</div></div>
       <div class="sum"><div class="k">XP gained</div><div class="v">+${st.me.vol.toLocaleString()}</div></div>
-      <div class="sum"><div class="k">Pace</div><div class="v">${st.pace?Math.round(st.pace):"—"}<small> kg/min</small></div></div>
+      <div class="sum"><div class="k">Pace</div><div class="v">${st.pace?Math.round(fromKg(st.pace)):"—"}<small> ${weightUnit()}/min</small></div></div>
     </div>
     ${badges.length?`<div class="sum-badges">${badges.map(b=>`<div class="sum-badge">${b}</div>`).join("")}</div>`:""}
     <button class="btn" id="sumDone" style="width:100%;margin-top:16px">Done</button>`);
@@ -3610,7 +3663,7 @@ function finishWorkout(){
     const plan = ex.plan==null ? Infinity : ex.plan;
     const bw=isBW(ex.exerciseId);
     const sets=ex.sets
-      .map((s,i)=>{ let w=parseFloat(s.weight); if(isNaN(w)&&bw) w=0; return {weight:w,reps:parseInt(s.reps,10),extra:i>=plan}; })
+      .map((s,i)=>{ let w=parseFloat(s.weight); if(isNaN(w)&&bw) w=0; if(!isNaN(w)) w=toKg(w); return {weight:w,reps:parseInt(s.reps,10),extra:i>=plan}; })
       .filter(s=>!isNaN(s.weight)&&s.weight>=0&&!isNaN(s.reps)&&s.reps>0);
     if(sets.length){
       newLogs.push({ id:uid(), exerciseId:ex.exerciseId, date:active.date, sets,
@@ -3653,7 +3706,7 @@ function editSession(sessionId){
       const plan = l.sets.filter(s=>!s.extra).length || l.sets.length;
       return { _id:uid(), exerciseId:l.exerciseId, name:exName(l.exerciseId), bonus:!!l.bonus, plan, ssPrev:false, target:"",
         prev:lastSessionBefore(l.exerciseId, sessionId, l.date),
-        sets:l.sets.map(s=>({weight:String(s.weight),reps:String(s.reps)})) };
+        sets:l.sets.map(s=>({weight:String(fromKg(s.weight)),reps:String(s.reps)})) };
     }) };
   saveActive();
   document.querySelector('nav button[data-tab="workout"]').click();
@@ -3673,17 +3726,27 @@ function renderProfile(){
   if(!$("#pfWeight")) return;
   const pf=data.profile||(data.profile={});
   const wl=pf.weightLog||[];
-  const cur=bodyweight();
-  $("#pfWeight").value = cur>0?cur:"";
-  $("#pfHeight").value = pf.height!=null?pf.height:"";
-  if($("#pfTarget")) $("#pfTarget").value = pf.targetWeight!=null?pf.targetWeight:"";
-  const h=+pf.height;
+  const cur=bodyweight(); // canonical kg — used for BMI below; do not display this raw value
+  $("#pfWeight").value = cur>0?fromKg(cur):"";
+  if($("#pfWeightUnit")) $("#pfWeightUnit").textContent = weightUnit();
+  const hu=heightUnit();
+  if($("#pfHeightCmWrap")) $("#pfHeightCmWrap").style.display = hu==="cm" ? "flex" : "none";
+  if($("#pfHeightFtWrap")) $("#pfHeightFtWrap").style.display = hu==="ft" ? "flex" : "none";
+  if(hu==="cm"){
+    $("#pfHeight").value = pf.height!=null?pf.height:"";
+  } else if($("#pfHeightFt")){
+    if(pf.height!=null){ const {ft,inch}=cmToFtIn(pf.height); $("#pfHeightFt").value=ft; $("#pfHeightIn").value=inch; }
+    else { $("#pfHeightFt").value=""; $("#pfHeightIn").value=""; }
+  }
+  if($("#pfTarget")) $("#pfTarget").value = pf.targetWeight!=null?fromKg(pf.targetWeight):"";
+  if($("#pfTargetUnit")) $("#pfTargetUnit").textContent = weightUnit();
+  const h=+pf.height; // canonical cm — used for BMI below; do not display this raw value
   $("#pfExtra").textContent = (cur>0&&h>0) ? `BMI ${(cur/Math.pow(h/100,2)).toFixed(1)}` : "";
   if($("#pfTargetBar")) $("#pfTargetBar").innerHTML = targetBar();
   const chart=$("#pfChart");
   if(chart){
     if(wl.length<2){ chart.innerHTML=`<div class="empty">Save your weight on at least two different days to see a trend.</div>`; }
-    else { const series=wl.slice().sort((a,b)=>a.date.localeCompare(b.date)).map(e=>({date:e.date,v:+e.weight})); chart.innerHTML=lineChart(series); }
+    else { const series=wl.slice().sort((a,b)=>a.date.localeCompare(b.date)).map(e=>({date:e.date,v:fromKg(+e.weight)})); chart.innerHTML=lineChart(series); }
   }
   const so=$("#signOutBtn");
   if(so){
@@ -3705,6 +3768,20 @@ function renderProfile(){
   }
   renderReminderCard();
   renderWeightReminderCard();
+  renderUnitToggle();
+  renderHeightUnitToggle();
+}
+function renderUnitToggle(){
+  const kgBtn=$("#unitKgBtn"), lbBtn=$("#unitLbBtn"); if(!kgBtn||!lbBtn) return;
+  const u=weightUnit();
+  kgBtn.className="wd-btn"+(u==="kg"?" on":"");
+  lbBtn.className="wd-btn"+(u==="lb"?" on":"");
+}
+function renderHeightUnitToggle(){
+  const cmBtn=$("#unitCmBtn"), ftBtn=$("#unitFtBtn"); if(!cmBtn||!ftBtn) return;
+  const u=heightUnit();
+  cmBtn.className="wd-btn"+(u==="cm"?" on":"");
+  ftBtn.className="wd-btn"+(u==="ft"?" on":"");
 }
 
 /* ---------- workout reminders (web push) ---------- */
@@ -3829,7 +3906,7 @@ function renderExercises(){
     const c=data.logs.filter(l=>l.exerciseId===e.id).length;
     return `<div class="ex-item ex-open" data-id="${e.id}">
       <div><div class="name">${esc(e.name)}${e.bw?' <span class="bw-tag">BW</span>':''}</div>
-      <div class="meta">${e.unit} · ${c} session${c===1?"":"s"}</div></div>
+      <div class="meta">${c} session${c===1?"":"s"}</div></div>
       <span class="ex-chev">›</span></div>`;
   }).join("");
   box.querySelectorAll(".ex-open").forEach(r=>r.onclick=()=>openExerciseMenu(r.dataset.id));
@@ -3867,11 +3944,12 @@ function renderPRs(){
   const box=$("#prBody"); if(!box) return;
   const prs=data.prs||{};
   const order=["bench","deadlift","squat"].sort((a,b)=>((prs[b]!=null?prs[b]:-1)-(prs[a]!=null?prs[a]:-1)));
+  const u=weightUnit();
   const tile=(k,top)=>{
     const v=prs[k];
     const inner = prEditing===k
-      ? `<input class="pr-edit num-in" data-k="${k}" type="number" inputmode="decimal" step="0.5" value="${v!=null?v:""}" placeholder="kg">`
-      : `<span class="pr-num">${v!=null?v:"—"}<small>kg</small></span>`;
+      ? `<input class="pr-edit num-in" data-k="${k}" type="number" inputmode="decimal" step="0.5" value="${v!=null?fromKg(v):""}" placeholder="${u}">`
+      : `<span class="pr-num">${v!=null?fromKg(v):"—"}<small>${u}</small></span>`;
     return `<div class="pr-tile${top?" top":""}" data-k="${k}">${PR_META[k].icon}<span class="pr-name">${PR_META[k].name}</span>${inner}</div>`;
   };
   box.innerHTML=`<div class="pyramid">
@@ -3886,7 +3964,7 @@ function renderPRs(){
   const inp=box.querySelector(".pr-edit");
   if(inp){
     let done=false;
-    const commit=()=>{ if(done)return; done=true; const v=parseFloat(inp.value); data.prs=data.prs||{}; data.prs[inp.dataset.k]=isNaN(v)?null:v; prEditing=null; save(); renderPRs(); toast("PR saved ✓"); };
+    const commit=()=>{ if(done)return; done=true; const v=parseFloat(inp.value); data.prs=data.prs||{}; data.prs[inp.dataset.k]=isNaN(v)?null:toKg(v); prEditing=null; save(); renderPRs(); toast("PR saved ✓"); };
     inp.onclick=e=>e.stopPropagation();
     inp.onblur=commit;
     inp.onkeydown=e=>{ if(e.key==="Enter"){ e.preventDefault(); commit(); } else if(e.key==="Escape"){ done=true; prEditing=null; renderPRs(); } };
@@ -3929,13 +4007,13 @@ function renderProgress(){
   const topAll=per.reduce((m,s)=>Math.max(m,s.topWeight),0);
   const rm=per.reduce((m,s)=>Math.max(m,s.best1rm),0);
   const cd=per.slice(-10), maxBar=Math.max(...cd.map(s=>s.topWeight));
-  const series=per.map(s=>({date:s.date,v:s.topWeight}));
+  const series=per.map(s=>({date:s.date,v:fromKg(s.topWeight)}));
   const hist=[...per].reverse().map(s=>`<div class="hist-row"><span class="date">${s.date}</span>
     <span class="sets">${fmtSets(s.sets)} ${unit}</span></div>`).join("");
   body.innerHTML=`
     <div class="stat-grid">
-      <div class="stat"><div class="k">Top set</div><div class="v">${topAll}<small> ${unit}</small></div></div>
-      <div class="stat"><div class="k">Est. 1RM</div><div class="v">${Math.round(rm)}<small> ${unit}</small></div></div>
+      <div class="stat"><div class="k">Top set</div><div class="v">${fromKg(topAll)}<small> ${unit}</small></div></div>
+      <div class="stat"><div class="k">Est. 1RM</div><div class="v">${Math.round(fromKg(rm))}<small> ${unit}</small></div></div>
       <div class="stat"><div class="k">Sessions</div><div class="v">${logs.length}</div></div>
     </div>
     <label>Top set over time (${unit})</label>${bw?`<div style="color:var(--muted);font-size:11px;margin-top:2px">Includes your bodyweight recorded at each session${bodyweight()>0?"":" — set it in Profile"}</div>`:""}${lineChart(series)}
@@ -4071,6 +4149,19 @@ function currentNextUp(){
   const next=nextUpForProgram(p);
   return next ? {p,next} : null;
 }
+function weekGridHTML(p){
+  if(!p.days.length) return "";
+  const cols=p.days.length;
+  let cells=`<div class="wk-cell-head"></div>`+p.days.map(d=>`<div class="wk-cell-head">${esc(d.name)}</div>`).join("");
+  for(let w=1; w<=p.weeks; w++){
+    cells+=`<div class="wk-label">W${w}</div>`;
+    cells+=p.days.map(d=>{
+      const key=`w${w}-${d.id}`, done=!!(p.done&&p.done[key]);
+      return `<div class="wk-cell${done?" done":""}" data-key="${key}" title="${esc(d.name)} — Week ${w}">${done?"✓":""}</div>`;
+    }).join("");
+  }
+  return `<div class="wk-grid" style="grid-template-columns:34px repeat(${cols},1fr)">${cells}</div>`;
+}
 function calendarHTML(p){
   const sched=programSchedule(p);
   if(!sched.length) return `<div class="empty">Set a start date and assign weekdays to your training days (in Edit program) to see a calendar.</div>`;
@@ -4097,11 +4188,12 @@ function calendarHTML(p){
         const allDone=entries.every(e=>p.done&&p.done[e.key]);
         const isPast=dateStr<today;
         cls+=allDone?" cal-done":(isPast?" cal-missed":" cal-upcoming");
+        cls+=" cal-clickable";
         mark=`<span class="cal-dot"></span>`;
       }
       if(dateStr===today) cls+=" cal-today";
       const title=entries.map(e=>esc(e.day.name)).join(", ");
-      cells+=`<div class="${cls}"${title?` title="${title}"`:""}>${dnum}${mark}</div>`;
+      cells+=`<div class="${cls}"${entries.length?` data-date="${dateStr}"`:""}${title?` title="${title}"`:""}>${dnum}${mark}</div>`;
     }
     out+=`<div class="cal-month"><div class="cal-mtitle">${monthName}</div><div class="cal-grid">${DOW.map(d=>`<div class="cal-dow">${d[0]}</div>`).join("")}${cells}</div></div>`;
     cursor = m===12 ? `${y+1}-01-01` : `${y}-${String(m+1).padStart(2,"0")}-01`;
@@ -4193,14 +4285,6 @@ function openProgram(id){
   const p=data.programs.find(x=>x.id===id); if(!p) return;
   const c=progCompletion(p);
   const plan=p.days.map(d=>`<div class="daycard">${dayPlanHTML(d)}</div>`).join("");
-  let weeks="";
-  for(let w=1; w<=p.weeks; w++){
-    const pills=p.days.map(d=>{
-      const key=`w${w}-${d.id}`, done=!!(p.done&&p.done[key]);
-      return `<button class="day-pill${done?" done":""}" data-key="${key}">${done?'<span class="tick">✓</span>':''}${esc(d.name)}</button>`;
-    }).join("");
-    weeks+=`<div class="week-block"><div class="wk">Week ${w}</div><div class="day-pills">${pills}</div></div>`;
-  }
   const sched=programSchedule(p);
   const next=nextUpForProgram(p);
   const nextupHTML = next
@@ -4218,9 +4302,9 @@ function openProgram(id){
       <div class="pbar"><span style="width:${c.pct}%"></span></div>
     </div>
     ${nextupHTML}
-    <div class="card"><h2>Calendar</h2>${calendarHTML(p)}</div>
     <div class="card"><h2>The plan &amp; your last time each day</h2>${plan}</div>
-    <div class="card"><h2>Track it — tap a day when done</h2>${weeks}</div>
+    <div class="card"><h2>Weeks</h2><div class="day-sub" style="margin-bottom:8px">Tap a cell to mark it done.</div>${weekGridHTML(p)}</div>
+    <div class="card"><h2>Calendar</h2><div class="day-sub" style="margin-bottom:8px">Tap a date to mark it done.</div>${calendarHTML(p)}</div>
     <div style="text-align:center;display:flex;gap:18px;justify-content:center;flex-wrap:wrap">
       <button class="link share-prog" style="color:var(--ss)">Share</button>
       <button class="link edit-prog" style="color:var(--accent)">Edit program</button>
@@ -4228,8 +4312,16 @@ function openProgram(id){
     </div>`;
   $("#progDetailBody").querySelector(".edit-prog").onclick=()=>editProgram(id);
   $("#progDetailBody").querySelector(".share-prog").onclick=()=>shareProgram(id);
-  $("#progDetailBody").querySelectorAll(".day-pill").forEach(btn=>btn.onclick=()=>{
-    p.done ||= {}; p.done[btn.dataset.key]=!p.done[btn.dataset.key];
+  $("#progDetailBody").querySelectorAll(".wk-cell[data-key]").forEach(cell=>cell.onclick=()=>{
+    p.done ||= {}; p.done[cell.dataset.key]=!p.done[cell.dataset.key];
+    save(); openProgram(id); renderProgramList();
+  });
+  $("#progDetailBody").querySelectorAll(".cal-cell[data-date]").forEach(cell=>cell.onclick=()=>{
+    const entries=sched.filter(e=>e.date===cell.dataset.date);
+    if(!entries.length) return;
+    p.done ||= {};
+    const allDone=entries.every(e=>p.done[e.key]);
+    entries.forEach(e=>{ p.done[e.key]=!allDone; });
     save(); openProgram(id); renderProgramList();
   });
   $("#progDetailBody").querySelector(".del-prog").onclick=()=>{
@@ -4260,15 +4352,24 @@ $("#woBonusName").addEventListener("keydown",e=>{ if(e.key==="Enter") addBonus()
 $("#addExBtn").onclick=()=>{
   const n=$("#newExName").value.trim();
   if(!n){ toast("Enter a name"); return; }
-  data.exercises.push({id:uid(),name:n,unit:$("#newExUnit").value});
+  data.exercises.push({id:uid(),name:n});
   $("#newExName").value=""; save(); refreshAll(); toast("Exercise added");
 };
 $("#pfSave").onclick=()=>{
-  const w=parseFloat($("#pfWeight").value), h=parseFloat($("#pfHeight").value), tg=parseFloat($("#pfTarget").value);
+  const wRaw=parseFloat($("#pfWeight").value), tgRaw=parseFloat($("#pfTarget").value);
   const pf=data.profile||(data.profile={});
-  pf.height=isNaN(h)?null:h;
-  pf.targetWeight=isNaN(tg)?null:tg;
-  if(!isNaN(w)){
+  let h;
+  if(heightUnit()==="cm"){
+    const hRaw=parseFloat($("#pfHeight").value);
+    h=isNaN(hRaw)?null:hRaw;
+  } else {
+    const ftVal=$("#pfHeightFt").value, inVal=$("#pfHeightIn").value;
+    h=(ftVal===""&&inVal==="")?null:ftInToCm(parseFloat(ftVal)||0,parseFloat(inVal)||0);
+  }
+  pf.height=h;
+  pf.targetWeight=isNaN(tgRaw)?null:toKg(tgRaw);
+  if(!isNaN(wRaw)){
+    const w=toKg(wRaw);
     pf.bodyweight=w;
     pf.weightLog=pf.weightLog||[];
     const today=todayISO(), ex=pf.weightLog.find(e=>e.date===today);
@@ -4278,6 +4379,14 @@ $("#pfSave").onclick=()=>{
 };
 $("#progExercise").onchange=renderProgress;
 if($("#openSettingsBtn")) $("#openSettingsBtn").onclick=()=>{ $("#pfMainView").classList.add("hidden"); $("#pfSettingsView").classList.remove("hidden"); };
+if($("#unitKgBtn")&&$("#unitLbBtn")) [$("#unitKgBtn"),$("#unitLbBtn")].forEach(b=>b.onclick=()=>{
+  data.profile=data.profile||{}; data.profile.weightUnit=b.dataset.unit;
+  save(); refreshAll();
+});
+if($("#unitCmBtn")&&$("#unitFtBtn")) [$("#unitCmBtn"),$("#unitFtBtn")].forEach(b=>b.onclick=()=>{
+  data.profile=data.profile||{}; data.profile.heightUnit=b.dataset.unit;
+  save(); refreshAll();
+});
 if($("#settingsBack")) $("#settingsBack").onclick=()=>{ $("#pfSettingsView").classList.add("hidden"); $("#pfMainView").classList.remove("hidden"); };
 if($("#reminderToggle")) $("#reminderToggle").onclick=toggleReminders;
 if($("#weightReminderToggle")) $("#weightReminderToggle").onclick=toggleWeightReminder;
@@ -4351,8 +4460,9 @@ function refreshAll(){ fillSelects(); renderRecent(); renderExercises(); renderP
 
 /* init */
 load();
-restDuration = data.restDuration || 120;
 try{ const savedActive=store.get(AKEY); if(savedActive){ active=JSON.parse(savedActive); } }catch(_){ active=null; }
+migrateWeightUnit();
+restDuration = data.restDuration || 120;
 refreshAll();
 if(active){ showActive(); toast("Resumed your workout"); } else showStart();
 checkIncomingShare();
