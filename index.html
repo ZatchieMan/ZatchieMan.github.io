@@ -3595,7 +3595,8 @@ function addBonus(){
   if(!name){ toast("Exercise name?"); return; }
   const exId=findOrCreateExercise(name);
   const prev=lastSessionFor(exId);
-  const count=Math.max(prev?prev.sets.length:0,1);
+  const defaultCount=active.programId?1:3;
+  const count=Math.max(prev?prev.sets.length:0,defaultCount);
   active.exercises.push({ _id:uid(), exerciseId:exId, name, bonus:!!active.programId, plan:count, ssPrev:false, target:"", prev,
     sets:Array.from({length:count},()=>({weight:"",reps:""})) });
   $("#woBonusName").value=""; save(); saveActive(); renderActive();
