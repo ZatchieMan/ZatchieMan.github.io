@@ -135,6 +135,15 @@
   .lvl-total{font-family:"Roboto Mono",monospace;font-weight:700;font-size:20px;color:var(--text)}
   .lvl-total small{font-size:11px;color:var(--muted);font-weight:500}
   .lvl-sub2{color:var(--muted);font-size:12.5px;margin-top:5px}
+  .lb-btn{width:100%;margin:8px 0 14px;font-size:15px}
+  .lb-row{display:flex;align-items:center;gap:10px;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line)}
+  .lb-row:last-child{border-bottom:none}
+  .lb-rank{width:22px;flex:0 0 auto;font-family:"Roboto Mono",monospace;font-weight:700;color:var(--muted);text-align:center}
+  .lb-row.me .lb-rank{color:#f5b301}
+  .lb-who{min-width:0;flex:1;font-weight:600;font-size:15px}
+  .lb-row.me .lb-who{color:#f5b301}
+  .lb-sub{font-size:12px;color:var(--muted);font-weight:500}
+  .lb-xp{font-family:"Roboto Mono",monospace;font-weight:700;font-size:14px;color:var(--text);flex:0 0 auto;text-align:right}
   .lvl-pct{color:var(--accent);font-family:"Barlow Condensed",sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.04em;font-size:14px;margin-top:7px}
   .weigh-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
   .weigh-done{color:var(--good);font-family:"Roboto Mono",monospace;font-size:13px;flex:0 0 auto}
@@ -347,6 +356,7 @@
     <!-- start screen -->
     <div id="woStart">
       <div class="card lvl-card"><div id="levelBox"></div></div>
+      <button class="btn ghost lb-btn hidden" id="leaderboardBtn">🏆 Leaderboard</button>
       <div class="nextup hidden" id="nextUpCard">
         <div class="k">Next up</div>
         <div class="name" id="nextUpName"></div>
@@ -2996,10 +3006,12 @@ function socialOn(){ return !!(sb && sbUser); }
 async function onSignedIn(){ await upsertMyProfile(); refreshSocial(); }
 async function upsertMyProfile(){
   if(!socialOn()) return;
-  try{ await sb.rpc("upsert_my_profile", { p_display_name: null }); }
+  const li=levelInfo();
+  try{ await sb.rpc("upsert_my_profile", { p_display_name: null, p_xp: li.xp, p_level: li.level }); }
   catch(e){ console.warn("profile upsert failed", e); }
 }
 async function refreshSocial(){
+  const lb=$("#leaderboardBtn"); if(lb) lb.classList.toggle("hidden", !socialOn());
   if(!socialOn()){ friendsCache=[]; reqCache=[]; inboxCache=[]; renderFriends(); renderInbox(); return; }
   try{
     const [f,r,i] = await Promise.all([
@@ -3014,6 +3026,27 @@ async function refreshSocial(){
   renderFriends(); renderInbox();
 }
 function socWho(o){ return (o && o.display_name && o.display_name.trim()) ? o.display_name : ((o && o.email) || "friend"); }
+async function openLeaderboard(){
+  if(!socialOn()){ toast("Sign in to see the leaderboard"); return; }
+  openModal('<h2 style="margin-top:0">🏆 Leaderboard</h2><div id="lbBody"><div class="empty">Loading…</div></div>');
+  let rows=[];
+  try{
+    const { data:res, error } = await sb.rpc("list_leaderboard");
+    if(error) throw error;
+    rows = res||[];
+  }catch(e){
+    console.warn("leaderboard failed", e);
+    $("#lbBody").innerHTML='<div class="empty">Couldn\'t load the leaderboard.</div>';
+    return;
+  }
+  const body=$("#lbBody"); if(!body) return;
+  if(!rows.length){ body.innerHTML='<div class="empty">Add some friends to see them here.</div>'; return; }
+  body.innerHTML = rows.map((r,i)=>
+    '<div class="lb-row'+(r.is_me?' me':'')+'"><div class="lb-rank">'+(i+1)+'</div>'
+    +'<div class="lb-who">'+esc(socWho(r))+(r.is_me?' <span class="lb-sub">(you)</span>':'')+'<div class="lb-sub">'+esc(levelTitle(r.level))+' · Lv '+r.level+'</div></div>'
+    +'<div class="lb-xp">'+(+r.xp||0).toLocaleString()+'<div class="lb-sub" style="text-align:right">XP</div></div></div>'
+  ).join("");
+}
 function renderFriends(){
   const card=$("#friendsCard"); if(!card) return;
   card.style.display = socialOn() ? "" : "none";
@@ -3364,7 +3397,7 @@ function renderWeighIn(){
     };
   }
 }
-function renderWorkoutStart(){ renderLevel(); renderNextUp(); renderWeighIn(); renderRecent(); renderHistory(); }
+function renderWorkoutStart(){ renderLevel(); renderNextUp(); renderWeighIn(); renderRecent(); renderHistory(); const lb=$("#leaderboardBtn"); if(lb) lb.classList.toggle("hidden", !socialOn()); }
 function renderNextUp(){
   const card=$("#nextUpCard"); if(!card) return;
   const info=currentNextUp();
@@ -3690,6 +3723,7 @@ function finishWorkout(){
   updateReminderProfile();
   clearRest(); save();
   const newLvl=levelInfo().level;
+  upsertMyProfile();
   active=null; saveActive(); showStart(); refreshAll();
   if(editing){ toast("Workout updated ✓"); }
   else { showWorkoutSummary(prevLvl, newLvl, st); }
@@ -4436,6 +4470,7 @@ if($("#unitCmBtn")&&$("#unitFtBtn")) [$("#unitCmBtn"),$("#unitFtBtn")].forEach(b
 });
 if($("#settingsBack")) $("#settingsBack").onclick=()=>{ $("#pfSettingsView").classList.add("hidden"); $("#pfMainView").classList.remove("hidden"); };
 if($("#feedbackBtn")) $("#feedbackBtn").onclick=openFeedbackModal;
+if($("#leaderboardBtn")) $("#leaderboardBtn").onclick=openLeaderboard;
 if($("#reminderToggle")) $("#reminderToggle").onclick=toggleReminders;
 if($("#weightReminderToggle")) $("#weightReminderToggle").onclick=toggleWeightReminder;
 if($("#weightReminderTime")) $("#weightReminderTime").onchange=()=>{
