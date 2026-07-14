@@ -60,9 +60,9 @@
   input:focus,select:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:var(--accent)}
   input.num-in{font-family:"Roboto Mono",monospace}
 
-  button.btn{background:var(--accent);color:#181510;border:none;border-radius:8px;padding:12px 16px;cursor:pointer;
+  button.btn,a.btn{background:var(--accent);color:#181510;border:none;border-radius:8px;padding:12px 16px;cursor:pointer;
     font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;letter-spacing:.06em;font-size:15px;font-weight:600}
-  button.btn:hover{filter:brightness(1.08)}
+  button.btn:hover,a.btn:hover{filter:brightness(1.08)}
   button.btn:disabled{opacity:.5;pointer-events:none}
   button.ghost{background:none;border:1px solid var(--line);color:var(--text)}
   button.ghost:hover{border-color:var(--accent);color:var(--accent)}
@@ -506,6 +506,10 @@
     <div id="pfSettingsView" class="hidden">
       <span class="back" id="settingsBack">← Profile</span>
       <button class="btn feedback-btn" id="feedbackBtn">💬 Send Feedback</button>
+      <div class="card" id="premiumCard" style="display:none">
+        <h2>Premium</h2>
+        <div id="premiumBody"></div>
+      </div>
       <div class="card">
         <h2>Units</h2>
         <div class="row">
@@ -2940,6 +2944,8 @@ const SUPABASE_URL = "https://ilmnuygckesuimmfxuqz.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlsbW51eWdja2VzdWltbWZ4dXF6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM2MTUxNjUsImV4cCI6MjA5OTE5MTE2NX0.AZDuvvpiGlaZ0Y5HQwOSvkK2idg5ll3GJqW8jFnVzjA";
 /* Public VAPID key for workout-reminder push notifications — safe to ship publicly, pairs with a private key held only by the Supabase Edge Function. */
 const VAPID_PUBLIC_KEY = "BMoTeGOyir5mk2l1Gxk4s0DC2Ck38r4z8HH1Q8kYOjgWt9bfvTdg7TUEAKO9WXMwtjx9015GfDKZhU6ITUlbWIY";
+/* Stripe Payment Link for the Iron Log Premium monthly subscription — TODO: replace with the real link once created. */
+const PREMIUM_PAYMENT_LINK = "https://buy.stripe.com/REPLACE_ME";
 
 let sb=null, sbUser=null, pushTimer=null;
 function supaConfigured(){ return SUPABASE_URL.indexOf("YOUR-")<0 && SUPABASE_ANON_KEY.indexOf("YOUR-")<0; }
@@ -3105,6 +3111,7 @@ async function onSignedIn(){
   refreshSocial();
   renderProfile();
   maybeShowUsernameGate();
+  checkUpgradeRedirect();
 }
 async function upsertMyProfile(name){
   if(!socialOn()) return;
@@ -3115,13 +3122,55 @@ async function upsertMyProfile(name){
 async function fetchMyProfile(){
   if(!socialOn()){ myProfile=null; return null; }
   try{
-    const { data:row, error } = await sb.from("profiles").select("display_name").eq("user_id", sbUser.id).maybeSingle();
+    const { data:row, error } = await sb.from("profiles").select("display_name, premium").eq("user_id", sbUser.id).maybeSingle();
     if(error) throw error;
     myProfile = row || null;
   }catch(e){ console.warn("fetchMyProfile failed", e); }
   return myProfile;
 }
 function hasUsername(){ return !!(myProfile && myProfile.display_name && myProfile.display_name.trim()); }
+function isPremium(){ return !!(myProfile && myProfile.premium); }
+function premiumConfigured(){ return PREMIUM_PAYMENT_LINK.indexOf("REPLACE_ME")<0; }
+const FREE_PROGRAM_LIMIT = 1;
+const FREE_HISTORY_DAYS = 90;
+function historyCutoffISO(){ return addDaysISO(todayISO(), -FREE_HISTORY_DAYS); }
+function openPaywall(reason){
+  if(!premiumConfigured()) return;
+  if(!socialOn()){ toast("Sign in to upgrade to Premium"); return; }
+  const link = PREMIUM_PAYMENT_LINK + "?client_reference_id=" + encodeURIComponent(sbUser.id);
+  openModal(`<h2 style="margin-top:0">Iron Log Premium</h2>
+    <div class="modal-note">${esc(reason||"Upgrade to unlock this.")}</div>
+    <ul style="color:var(--text);font-size:14px;line-height:1.7;padding-left:20px;margin:14px 0">
+      <li>Unlimited programs</li>
+      <li>Full progress history & CSV export</li>
+    </ul>
+    <a class="btn" href="${link}" style="display:block;width:100%;text-align:center;text-decoration:none;box-sizing:border-box">Upgrade — $2.99/mo</a>`);
+}
+async function openManageSubscription(){
+  if(!socialOn()) return;
+  toast("Opening billing portal…");
+  try{
+    const { data:{ session } } = await sb.auth.getSession();
+    const r = await fetch(SUPABASE_URL+"/functions/v1/create-portal-session", {
+      method:"POST", headers:{ Authorization:"Bearer "+session.access_token }
+    });
+    const j = await r.json();
+    if(j.url) location.href = j.url;
+    else toast(j.error||"Couldn't open billing portal");
+  }catch(e){ toast("Couldn't open billing portal"); }
+}
+function checkUpgradeRedirect(){
+  if(location.search.indexOf("upgraded=1")<0) return;
+  history.replaceState(null, "", location.pathname);
+  if(!socialOn()) return;
+  let tries=0;
+  const poll=setInterval(async ()=>{
+    tries++;
+    await fetchMyProfile();
+    if(isPremium()){ clearInterval(poll); toast("Welcome to Premium ✓"); renderProfile(); }
+    else if(tries>=6){ clearInterval(poll); }
+  }, 1500);
+}
 function maybeShowUsernameGate(){
   if(!socialOn() || hasUsername()){ hideUsernameGate(); return; }
   showUsernameGate();
@@ -3367,6 +3416,7 @@ function dayPlanHTML(d){
 }
 
 function exportCSV(){
+  if(premiumConfigured() && !isPremium()){ openPaywall("CSV export is a Premium feature."); return; }
   const pn=id=>{const p=data.programs.find(x=>x.id===id);return p?p.name:"";};
   const dn=(pid,did)=>{const p=data.programs.find(x=>x.id===pid);if(!p)return"";const d=p.days.find(x=>x.id===did);return d?d.name:"";};
   const rows=[["date","program","day","exercise","unit","set","weight","reps","extra_set","bonus"]];
@@ -3960,6 +4010,22 @@ function renderProfile(){
   renderWeightReminderCard();
   renderUnitToggle();
   renderHeightUnitToggle();
+  renderPremiumCard();
+}
+function renderPremiumCard(){
+  const card=$("#premiumCard"), body=$("#premiumBody");
+  if(!card||!body) return;
+  if(!socialOn() || !premiumConfigured()){ card.style.display="none"; return; }
+  card.style.display="";
+  if(isPremium()){
+    body.innerHTML=`<div class="ex-menu-row"><div style="flex:1"><div class="name">Premium active</div><div class="meta">Unlimited programs, full history, and CSV export.</div></div></div>
+      <button class="btn ghost" id="manageSubBtn" style="width:100%;margin-top:10px">Manage subscription</button>`;
+    $("#manageSubBtn").onclick=openManageSubscription;
+  } else {
+    body.innerHTML=`<div class="meta" style="margin-bottom:10px">Unlock unlimited programs, full progress history, and CSV export.</div>
+      <button class="btn" id="upgradeBtn" style="width:100%">Upgrade — $2.99/mo</button>`;
+    $("#upgradeBtn").onclick=()=>openPaywall("Upgrade to Iron Log Premium.");
+  }
 }
 function renderUnitToggle(){
   const kgBtn=$("#unitKgBtn"), lbBtn=$("#unitLbBtn"); if(!kgBtn||!lbBtn) return;
@@ -4185,8 +4251,16 @@ function lineChart(series){
 function renderProgress(){
   const id=$("#progExercise").value, body=$("#progBody");
   if(!id){ body.innerHTML=`<div class="empty">Select an exercise to see its progress.</div>`; return; }
-  const logs=data.logs.filter(l=>l.exerciseId===id).sort((a,b)=>a.date.localeCompare(b.date)||a.id.localeCompare(b.id));
+  let logs=data.logs.filter(l=>l.exerciseId===id).sort((a,b)=>a.date.localeCompare(b.date)||a.id.localeCompare(b.id));
   if(!logs.length){ body.innerHTML=`<div class="empty">No sessions logged for this exercise yet.</div>`; return; }
+  const capped=premiumConfigured() && !isPremium(), cutoff=historyCutoffISO();
+  const hiddenCount = capped ? logs.filter(l=>l.date<cutoff).length : 0;
+  if(capped) logs = logs.filter(l=>l.date>=cutoff);
+  if(!logs.length){
+    body.innerHTML=`<div class="empty">No sessions in the last ${FREE_HISTORY_DAYS} days. <button class="link" id="progUpgradeLink" style="color:var(--accent)">Upgrade</button> to see full history.</div>`;
+    $("#progUpgradeLink").onclick=()=>openPaywall("Upgrade for full progress history.");
+    return;
+  }
   const unit=exUnit(id);
   const bw=isBW(id);
   const per=logs.map(l=>{
@@ -4209,7 +4283,9 @@ function renderProgress(){
       <div class="stat"><div class="k">Sessions</div><div class="v">${logs.length}</div></div>
     </div>
     <label>Top set over time (${unit})</label>${bw?`<div style="color:var(--muted);font-size:11px;margin-top:2px">Includes your bodyweight recorded at each session${bodyweight()>0?"":" — set it in Profile"}</div>`:""}${lineChart(series)}
-    <div class="hist"><label style="margin-top:14px">Full history</label>${hist}</div>`;
+    <div class="hist"><label style="margin-top:14px">Full history</label>${hist}</div>
+    ${hiddenCount>0?`<div class="modal-note" style="margin-top:10px">${hiddenCount} earlier session${hiddenCount===1?"":"s"} hidden — <button class="link" id="progUpgradeLink2" style="color:var(--accent)">upgrade</button> for full history.</div>`:""}`;
+  if(hiddenCount>0) $("#progUpgradeLink2").onclick=()=>openPaywall("Upgrade for full progress history.");
 }
 
 /* ---------- programs ---------- */
@@ -4661,6 +4737,10 @@ $("#bSave").onclick=()=>{
   if(!name){ toast("Name your program"); return; }
   if(isNaN(weeks)||weeks<1){ toast("How many weeks?"); return; }
   if(!draft.days.length){ toast("Add at least one training day"); return; }
+  if(draft._new && premiumConfigured() && !isPremium() && data.programs.length>=FREE_PROGRAM_LIMIT){
+    openPaywall("Free plan is limited to "+FREE_PROGRAM_LIMIT+" program at a time. Upgrade for unlimited programs.");
+    return;
+  }
   const days=draft.days.map(d=>({id:d.id||uid(),name:d.name,weekdays:(d.weekdays||[]).slice(),items:d.items.map(it=>({name:it.name,sets:it.sets,reps:it.reps,ssPrev:!!it.ssPrev}))}));
   if(draft._new){
     const prog={id:uid(),name,weeks:Math.min(weeks,52),startDate,days,done:{}};
