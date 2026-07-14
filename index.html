@@ -2956,6 +2956,11 @@ function schedulePush(){
   clearTimeout(pushTimer);
   pushTimer=setTimeout(pushRemote, 2500);
 }
+function trackEvent(name, props){
+  if(!sb || !sbUser) return;
+  sb.from("analytics_events").insert({user_id:sbUser.id, event_name:name, properties:props||{}})
+    .then(({error})=>{ if(error) console.warn("track failed", name, error); });
+}
 async function pushRemote(){
   if(!sb || !sbUser) return;
   try{
@@ -3201,6 +3206,7 @@ function exportCSV(){
     l.sets.forEach((s,i)=>rows.push([l.date,pn(l.programId),dn(l.programId,l.dayId),exName(l.exerciseId),exUnit(l.exerciseId),i+1,fromKg(s.weight),s.reps,s.extra?"yes":"",l.bonus?"yes":""]));
   });
   if(rows.length<2){ toast("Nothing to export yet"); return; }
+  trackEvent("csv_exported", { rows:rows.length-1 });
   const csv=rows.map(r=>r.map(c=>{c=String(c);return /[",\n]/.test(c)?'"'+c.replace(/"/g,'""')+'"':c;}).join(",")).join("\n");
   const blob=new Blob([csv],{type:"text/csv"});
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="iron-log-export.csv"; a.click();
@@ -3679,6 +3685,7 @@ function finishWorkout(){
   if(editing){ data.logs=data.logs.filter(l=>(l.sessionId||l.id)!==editing); }
   const st = editing ? null : computeFinishStats(newLogs, durSec);
   data.logs.push(...newLogs);
+  if(!editing) trackEvent("workout_finished", { hasProgram:!!active.programId, exerciseCount:newLogs.length, setCount:newLogs.reduce((s,l)=>s+l.sets.length,0), durationSec:durSec });
   updateReminderProfile();
   clearRest(); save();
   const newLvl=levelInfo().level;
@@ -3866,6 +3873,7 @@ async function toggleReminders(){
     const ok=await enablePush();
     if(!ok) return;
     r.enabled=true; r.timezone=Intl.DateTimeFormat().resolvedOptions().timeZone;
+    trackEvent("workout_reminder_enabled", {});
     toast("Workout reminders enabled ✓");
   } else {
     r.enabled=false;
@@ -3894,6 +3902,7 @@ async function toggleWeightReminder(){
     const ok=await enablePush();
     if(!ok) return;
     wr.enabled=true; wr.timezone=Intl.DateTimeFormat().resolvedOptions().timeZone;
+    trackEvent("weight_reminder_enabled", {});
     toast("Weight reminder enabled ✓");
   } else {
     wr.enabled=false;
@@ -4344,7 +4353,10 @@ function openProgram(id){
   $("#progDetailBody").querySelector(".edit-prog").onclick=()=>editProgram(id);
   $("#progDetailBody").querySelector(".share-prog").onclick=()=>shareProgram(id);
   $("#progDetailBody").querySelectorAll(".wk-cell[data-key]").forEach(cell=>cell.onclick=()=>{
-    p.done ||= {}; p.done[cell.dataset.key]=!p.done[cell.dataset.key];
+    p.done ||= {};
+    const nowDone=!p.done[cell.dataset.key];
+    p.done[cell.dataset.key]=nowDone;
+    if(nowDone) trackEvent("program_day_marked_done", {});
     save(); openProgram(id); renderProgramList();
   });
   $("#progDetailBody").querySelectorAll(".cal-cell[data-date]").forEach(cell=>cell.onclick=()=>{
@@ -4353,6 +4365,7 @@ function openProgram(id){
     p.done ||= {};
     const allDone=entries.every(e=>p.done[e.key]);
     entries.forEach(e=>{ p.done[e.key]=!allDone; });
+    if(!allDone) trackEvent("program_day_marked_done", {});
     save(); openProgram(id); renderProgramList();
   });
   $("#progDetailBody").querySelector(".del-prog").onclick=()=>{
@@ -4412,10 +4425,12 @@ $("#progExercise").onchange=renderProgress;
 if($("#openSettingsBtn")) $("#openSettingsBtn").onclick=()=>{ $("#pfMainView").classList.add("hidden"); $("#pfSettingsView").classList.remove("hidden"); };
 if($("#unitKgBtn")&&$("#unitLbBtn")) [$("#unitKgBtn"),$("#unitLbBtn")].forEach(b=>b.onclick=()=>{
   data.profile=data.profile||{}; data.profile.weightUnit=b.dataset.unit;
+  trackEvent("unit_changed", { kind:"weight", value:b.dataset.unit });
   save(); refreshAll();
 });
 if($("#unitCmBtn")&&$("#unitFtBtn")) [$("#unitCmBtn"),$("#unitFtBtn")].forEach(b=>b.onclick=()=>{
   data.profile=data.profile||{}; data.profile.heightUnit=b.dataset.unit;
+  trackEvent("unit_changed", { kind:"height", value:b.dataset.unit });
   save(); refreshAll();
 });
 if($("#settingsBack")) $("#settingsBack").onclick=()=>{ $("#pfSettingsView").classList.add("hidden"); $("#pfMainView").classList.remove("hidden"); };
@@ -4453,7 +4468,9 @@ $("#bSave").onclick=()=>{
   const days=draft.days.map(d=>({id:d.id||uid(),name:d.name,weekdays:(d.weekdays||[]).slice(),items:d.items.map(it=>({name:it.name,sets:it.sets,reps:it.reps,ssPrev:!!it.ssPrev}))}));
   if(draft._new){
     const prog={id:uid(),name,weeks:Math.min(weeks,52),startDate,days,done:{}};
-    data.programs.push(prog); save(); draft=null; renderProgramList(); openProgram(prog.id); toast("Program created ✓");
+    data.programs.push(prog); save();
+    trackEvent("program_created", { weeks:prog.weeks, days:prog.days.length });
+    draft=null; renderProgramList(); openProgram(prog.id); toast("Program created ✓");
   } else {
     const p=data.programs.find(x=>x.id===draft.id);
     if(p){ p.name=name; p.weeks=Math.min(weeks,52); p.startDate=startDate; p.days=days; }
