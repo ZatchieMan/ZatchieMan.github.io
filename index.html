@@ -173,6 +173,9 @@
   .hero-start:hover{box-shadow:0 10px 30px rgba(245,179,1,.4)}
   .hero-start:active{transform:scale(.985)}
   .hero-start svg{width:30px;height:30px;stroke:#181510;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
+  .feedback-btn{width:100%;padding:20px;font-size:20px;margin-bottom:14px;border-radius:14px}
+  textarea.num-in{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:12px;font-size:15px;font-family:inherit;resize:vertical}
+  textarea.num-in:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:var(--accent)}
   .bw-toggle{background:var(--bg);border:1px solid var(--line);color:var(--muted);border-radius:20px;padding:7px 13px;font-family:"Barlow Condensed",sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.03em;font-size:12px;cursor:pointer;flex:0 0 auto}
   .bw-toggle.on{background:var(--accent);border-color:var(--accent);color:#181510}
   .ex-open{cursor:pointer}
@@ -479,6 +482,7 @@
     </div>
     <div id="pfSettingsView" class="hidden">
       <span class="back" id="settingsBack">← Profile</span>
+      <button class="btn feedback-btn" id="feedbackBtn">💬 Send Feedback</button>
       <div class="card">
         <h2>Units</h2>
         <div class="row">
@@ -4025,6 +4029,32 @@ function renderProgress(){
 /* ---------- share / import programs (link + QR, no server) ---------- */
 function openModal(html){ $("#modalBody").innerHTML=html; $("#modal").classList.remove("hidden"); }
 function closeModal(){ $("#modal").classList.add("hidden"); $("#modalBody").innerHTML=""; }
+function openFeedbackModal(){
+  openModal(`
+    <h2 style="margin-top:0">Send Feedback</h2>
+    <div class="modal-note">Bugs, ideas, anything that's bugging you about the app — goes straight to the developer.</div>
+    <textarea id="feedbackText" class="num-in" rows="6" style="margin-top:10px" placeholder="What's on your mind?"></textarea>
+    <button class="btn" id="feedbackSubmit" style="width:100%;margin-top:14px">Send</button>`);
+  $("#feedbackSubmit").onclick=async ()=>{
+    const msg=$("#feedbackText").value.trim();
+    if(!msg){ toast("Write something first"); return; }
+    if(sb && sbUser){
+      $("#feedbackSubmit").disabled=true; $("#feedbackSubmit").textContent="Sending…";
+      try{
+        const {error}=await sb.from("feedback").insert({user_id:sbUser.id, message:msg});
+        if(error) throw error;
+        closeModal(); toast("Feedback sent — thank you! ✓");
+      }catch(e){
+        console.warn("feedback insert failed", e);
+        $("#feedbackSubmit").disabled=false; $("#feedbackSubmit").textContent="Send";
+        toast("Couldn't send — try again");
+      }
+    } else {
+      window.location.href="mailto:zackarias.nil@gmail.com?subject="+encodeURIComponent("Iron Log feedback")+"&body="+encodeURIComponent(msg);
+      closeModal();
+    }
+  };
+}
 function packProgram(p){
   return {n:p.name,w:p.weeks,d:p.days.map(d=>({n:d.name,i:d.items.map(it=>{const o={n:it.name,s:it.sets,r:it.reps}; if(it.ssPrev)o.ss=1; return o;})}))};
 }
@@ -4389,6 +4419,7 @@ if($("#unitCmBtn")&&$("#unitFtBtn")) [$("#unitCmBtn"),$("#unitFtBtn")].forEach(b
   save(); refreshAll();
 });
 if($("#settingsBack")) $("#settingsBack").onclick=()=>{ $("#pfSettingsView").classList.add("hidden"); $("#pfMainView").classList.remove("hidden"); };
+if($("#feedbackBtn")) $("#feedbackBtn").onclick=openFeedbackModal;
 if($("#reminderToggle")) $("#reminderToggle").onclick=toggleReminders;
 if($("#weightReminderToggle")) $("#weightReminderToggle").onclick=toggleWeightReminder;
 if($("#weightReminderTime")) $("#weightReminderTime").onchange=()=>{
