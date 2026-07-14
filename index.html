@@ -63,6 +63,7 @@
   button.btn{background:var(--accent);color:#181510;border:none;border-radius:8px;padding:12px 16px;cursor:pointer;
     font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;letter-spacing:.06em;font-size:15px;font-weight:600}
   button.btn:hover{filter:brightness(1.08)}
+  button.btn:disabled{opacity:.5;pointer-events:none}
   button.ghost{background:none;border:1px solid var(--line);color:var(--text)}
   button.ghost:hover{border-color:var(--accent);color:var(--accent)}
   button.link{background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:4px;text-transform:uppercase;letter-spacing:.05em}
@@ -144,6 +145,7 @@
   .lb-row.me .lb-who{color:#f5b301}
   .lb-sub{font-size:12px;color:var(--muted);font-weight:500}
   .lb-level-badge{flex:0 0 auto;width:32px;height:32px;border-radius:50%;border:2px solid #f5b301;color:#f5b301;font-family:"Roboto Mono",monospace;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center}
+  .lb-email{font-size:11px;color:var(--muted);opacity:.75;margin-top:1px;overflow-wrap:anywhere}
   .lvl-pct{color:var(--accent);font-family:"Barlow Condensed",sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.04em;font-size:14px;margin-top:7px}
   .weigh-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
   .weigh-done{color:var(--good);font-family:"Roboto Mono",monospace;font-size:13px;flex:0 0 auto}
@@ -452,6 +454,10 @@
     <div id="pfMainView">
       <div class="card">
         <h2>Profile</h2>
+        <div id="pfUsernameRow" style="display:none;margin-bottom:12px">
+          <label>Username</label>
+          <input id="pfUsername" placeholder="Pick a username" maxlength="20" autocomplete="off">
+        </div>
         <div class="row">
           <div><label>Bodyweight</label><span class="pr-input" style="display:flex;align-items:center;gap:8px"><input id="pfWeight" class="num-in" type="number" inputmode="decimal" step="0.1" placeholder="—"><span class="pr-unit" id="pfWeightUnit">kg</span></span></div>
           <div><label>Height</label>
@@ -565,6 +571,15 @@
       Continue with Google
     </button>
     <button class="link" id="skipAuthBtn" style="color:var(--muted);margin-top:14px">Use offline on this device</button>
+  </div>
+</div>
+
+<div id="usernameGate" class="auth-gate hidden">
+  <div class="auth-box">
+    <div class="brand" style="justify-content:center;margin-bottom:6px"><div class="bar"></div><h1>Iron Log</h1></div>
+    <p class="auth-sub">Welcome! Pick a username — friends and the leaderboard will see this instead of your email.</p>
+    <input id="usernameGateInput" placeholder="Username" maxlength="20" autocomplete="off" style="width:100%;text-align:center;font-size:16px;padding:12px">
+    <button class="btn" id="usernameGateSaveBtn" style="width:100%;margin-top:14px" disabled>Continue</button>
   </div>
 </div>
 
@@ -2958,7 +2973,7 @@ async function signOutUser(){
   sbUser=null; curUid=null;
   store.del(KEY); store.del(AKEY);                        // wipe cache so the next account can't inherit it
   data = freshData(); data._owner=null; active=null;
-  friendsCache=[]; reqCache=[]; inboxCache=[]; renderFriends(); renderInbox();
+  friendsCache=[]; reqCache=[]; inboxCache=[]; myProfile=null; renderFriends(); renderInbox(); hideUsernameGate();
   showAuthGate();
 }
 function schedulePush(){
@@ -3001,14 +3016,51 @@ function showAuthGate(){ const g=$("#authGate"); if(g) g.classList.remove("hidde
 function hideAuthGate(){ const g=$("#authGate"); if(g) g.classList.add("hidden"); }
 
 /* ================= Friends & program sharing ================= */
-let friendsCache=[], reqCache=[], inboxCache=[];
+let friendsCache=[], reqCache=[], inboxCache=[], myProfile=null;
 function socialOn(){ return !!(sb && sbUser); }
-async function onSignedIn(){ await upsertMyProfile(); refreshSocial(); }
-async function upsertMyProfile(){
+async function onSignedIn(){
+  await upsertMyProfile();
+  await fetchMyProfile();
+  refreshSocial();
+  renderProfile();
+  maybeShowUsernameGate();
+}
+async function upsertMyProfile(name){
   if(!socialOn()) return;
   const li=levelInfo();
-  try{ await sb.rpc("upsert_my_profile", { p_display_name: null, p_xp: li.xp, p_level: li.level }); }
+  try{ await sb.rpc("upsert_my_profile", { p_display_name: (typeof name==="string" ? name : null), p_xp: li.xp, p_level: li.level }); }
   catch(e){ console.warn("profile upsert failed", e); }
+}
+async function fetchMyProfile(){
+  if(!socialOn()){ myProfile=null; return null; }
+  try{
+    const { data:row, error } = await sb.from("profiles").select("display_name").eq("user_id", sbUser.id).maybeSingle();
+    if(error) throw error;
+    myProfile = row || null;
+  }catch(e){ console.warn("fetchMyProfile failed", e); }
+  return myProfile;
+}
+function hasUsername(){ return !!(myProfile && myProfile.display_name && myProfile.display_name.trim()); }
+function maybeShowUsernameGate(){
+  if(!socialOn() || hasUsername()){ hideUsernameGate(); return; }
+  showUsernameGate();
+}
+function showUsernameGate(){
+  const g=$("#usernameGate"); if(!g) return;
+  const inp=$("#usernameGateInput"), btn=$("#usernameGateSaveBtn");
+  if(inp) inp.value="";
+  if(btn) btn.disabled=true;
+  g.classList.remove("hidden");
+}
+function hideUsernameGate(){ const g=$("#usernameGate"); if(g) g.classList.add("hidden"); }
+async function saveUsernameFromGate(){
+  const inp=$("#usernameGateInput"); const v=(inp&&inp.value||"").trim();
+  if(v.length<2){ toast("Enter at least 2 characters"); return; }
+  await upsertMyProfile(v);
+  myProfile={display_name:v};
+  hideUsernameGate();
+  refreshSocial(); renderProfile();
+  toast("Username saved ✓");
 }
 async function refreshSocial(){
   const lb=$("#leaderboardBtn"); if(lb) lb.classList.toggle("hidden", !socialOn());
@@ -3043,7 +3095,9 @@ async function openLeaderboard(){
   if(!rows.length){ body.innerHTML='<div class="empty">Add some friends to see them here.</div>'; return; }
   body.innerHTML = rows.map((r,i)=>
     '<div class="lb-row'+(r.is_me?' me':'')+'"><div class="lb-rank">'+(i+1)+'</div>'
-    +'<div class="lb-who">'+esc(socWho(r))+(r.is_me?' <span class="lb-sub">(you)</span>':'')+'<div class="lb-sub">'+esc(levelTitle(r.level))+' · '+(+r.xp||0).toLocaleString()+' XP</div></div>'
+    +'<div class="lb-who">'+esc(socWho(r))+(r.is_me?' <span class="lb-sub">(you)</span>':'')
+    +'<div class="lb-email">'+esc(r.email||"")+'</div>'
+    +'<div class="lb-sub">'+esc(levelTitle(r.level))+' · '+(+r.xp||0).toLocaleString()+' XP</div></div>'
     +'<div class="lb-level-badge">'+r.level+'</div></div>'
   ).join("");
 }
@@ -3773,6 +3827,12 @@ function renderProfile(){
   if(!$("#pfWeight")) return;
   const pf=data.profile||(data.profile={});
   const wl=pf.weightLog||[];
+  const unRow=$("#pfUsernameRow");
+  if(unRow){
+    unRow.style.display = socialOn() ? "" : "none";
+    const unInp=$("#pfUsername");
+    if(unInp && document.activeElement!==unInp) unInp.value = (myProfile&&myProfile.display_name) || "";
+  }
   const cur=bodyweight(); // canonical kg — used for BMI below; do not display this raw value
   $("#pfWeight").value = cur>0?fromKg(cur):"";
   if($("#pfWeightUnit")) $("#pfWeightUnit").textContent = weightUnit();
@@ -4420,6 +4480,11 @@ function closeProgram(){
 /* ---------- events ---------- */
 $("#googleBtn").onclick=signInGoogle;
 $("#skipAuthBtn").onclick=hideAuthGate;
+if($("#usernameGateInput")) $("#usernameGateInput").oninput=()=>{
+  $("#usernameGateSaveBtn").disabled = $("#usernameGateInput").value.trim().length<2;
+};
+if($("#usernameGateInput")) $("#usernameGateInput").onkeydown=e=>{ if(e.key==="Enter" && !$("#usernameGateSaveBtn").disabled) saveUsernameFromGate(); };
+if($("#usernameGateSaveBtn")) $("#usernameGateSaveBtn").onclick=saveUsernameFromGate;
 $("#startWoBtn").onclick=openStartChooser;
 $("#historyToggle").onclick=()=>{ const l=$("#historyList"), show=l.classList.contains("hidden"); l.classList.toggle("hidden",!show); $("#historyChevron").textContent=show?"−":"+"; };
 $("#woAddBonus").onclick=addBonus;
@@ -4454,6 +4519,13 @@ $("#pfSave").onclick=()=>{
     const today=todayISO(), ex=pf.weightLog.find(e=>e.date===today);
     if(ex) ex.weight=w; else { pf.weightLog.push({date:today,weight:w}); trackEvent("weight_logged", { source:"profile" }); }
   } else { pf.bodyweight=null; }
+  if(socialOn()){
+    const uname=($("#pfUsername").value||"").trim();
+    if(uname && uname!==(myProfile&&myProfile.display_name)){
+      if(uname.length<2){ toast("Username needs at least 2 characters"); }
+      else { upsertMyProfile(uname).then(()=>{ myProfile={display_name:uname}; refreshSocial(); }); }
+    }
+  }
   save(); renderProfile(); renderLevel(); renderProgress(); toast("Profile saved ✓");
 };
 $("#progExercise").onchange=renderProgress;
