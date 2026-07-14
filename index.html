@@ -3359,6 +3359,7 @@ function renderWeighIn(){
       const w=toKg(raw);
       const p=data.profile||(data.profile={}); p.weightLog=p.weightLog||[]; p.bodyweight=w;
       p.weightLog.push({date:today,weight:w});
+      trackEvent("weight_logged", { source:"quick_weighin" });
       save(); renderWeighIn(); renderLevel(); renderProfile(); toast("Weight logged ✓");
     };
   }
@@ -4417,7 +4418,7 @@ $("#pfSave").onclick=()=>{
     pf.bodyweight=w;
     pf.weightLog=pf.weightLog||[];
     const today=todayISO(), ex=pf.weightLog.find(e=>e.date===today);
-    if(ex) ex.weight=w; else pf.weightLog.push({date:today,weight:w});
+    if(ex) ex.weight=w; else { pf.weightLog.push({date:today,weight:w}); trackEvent("weight_logged", { source:"profile" }); }
   } else { pf.bodyweight=null; }
   save(); renderProfile(); renderLevel(); renderProgress(); toast("Profile saved ✓");
 };
