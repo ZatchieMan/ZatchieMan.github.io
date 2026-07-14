@@ -3027,10 +3027,8 @@ async function sendPasswordReset(){
   try{
     const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin+location.pathname });
     if(error){ toast(error.message||"Couldn't send reset email"); btn.disabled=false; return; }
-    openModal(`<h2 style="margin-top:0">Check your email</h2>
-      <div class="modal-note">We sent a password reset link to <b>${esc(email)}</b>. Follow the link to choose a new password.</div>
-      <button class="btn" id="resetDoneBtn" style="width:100%;margin-top:14px">Done</button>`);
-    $("#resetDoneBtn").onclick=closeModal;
+    closeModal();
+    toast("Password reset email sent ✓");
   }catch(e){ toast("Couldn't send reset email"); btn.disabled=false; }
 }
 function openSetNewPasswordModal(){
