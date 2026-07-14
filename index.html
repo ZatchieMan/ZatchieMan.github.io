@@ -143,7 +143,7 @@
   .lb-who{min-width:0;flex:1;font-weight:600;font-size:15px}
   .lb-row.me .lb-who{color:#f5b301}
   .lb-sub{font-size:12px;color:var(--muted);font-weight:500}
-  .lb-xp{font-family:"Roboto Mono",monospace;font-weight:700;font-size:14px;color:var(--text);flex:0 0 auto;text-align:right}
+  .lb-level-badge{flex:0 0 auto;width:32px;height:32px;border-radius:50%;border:2px solid #f5b301;color:#f5b301;font-family:"Roboto Mono",monospace;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center}
   .lvl-pct{color:var(--accent);font-family:"Barlow Condensed",sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.04em;font-size:14px;margin-top:7px}
   .weigh-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
   .weigh-done{color:var(--good);font-family:"Roboto Mono",monospace;font-size:13px;flex:0 0 auto}
@@ -3043,8 +3043,8 @@ async function openLeaderboard(){
   if(!rows.length){ body.innerHTML='<div class="empty">Add some friends to see them here.</div>'; return; }
   body.innerHTML = rows.map((r,i)=>
     '<div class="lb-row'+(r.is_me?' me':'')+'"><div class="lb-rank">'+(i+1)+'</div>'
-    +'<div class="lb-who">'+esc(socWho(r))+(r.is_me?' <span class="lb-sub">(you)</span>':'')+'<div class="lb-sub">'+esc(levelTitle(r.level))+' · Lv '+r.level+'</div></div>'
-    +'<div class="lb-xp">'+(+r.xp||0).toLocaleString()+'<div class="lb-sub" style="text-align:right">XP</div></div></div>'
+    +'<div class="lb-who">'+esc(socWho(r))+(r.is_me?' <span class="lb-sub">(you)</span>':'')+'<div class="lb-sub">'+esc(levelTitle(r.level))+' · '+(+r.xp||0).toLocaleString()+' XP</div></div>'
+    +'<div class="lb-level-badge">'+r.level+'</div></div>'
   ).join("");
 }
 function renderFriends(){
