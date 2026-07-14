@@ -168,6 +168,12 @@
   .auth-sub{color:var(--muted);font-size:14px;margin:0 0 22px}
   .auth-google{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;color:#181510;border:none;border-radius:12px;padding:14px;font-family:"Barlow Condensed",sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:.04em;font-size:16px;cursor:pointer}
   .auth-google:hover{background:#f2f2f2}
+  .auth-divider{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.05em;margin:18px 0}
+  .auth-divider::before,.auth-divider::after{content:"";flex:1;height:1px;background:var(--line)}
+  .auth-email-form input{text-align:left}
+  .auth-email-form input+input{margin-top:8px}
+  .auth-row{display:flex;justify-content:space-between;align-items:center;margin-top:12px;gap:10px}
+  .auth-row .link{color:var(--muted);font-size:12px;padding:2px}
   .weigh-today{text-align:center}
   .wt-label{color:var(--muted);font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;letter-spacing:.06em;font-size:14px;margin-bottom:8px}
   .wt-value{font-family:"Roboto Mono",monospace;font-weight:700;font-size:42px;color:var(--accent);line-height:1}
@@ -570,6 +576,16 @@
       <svg viewBox="0 0 48 48" width="20" height="20"><path fill="#FFC107" d="M43.6 20.5h-1.9V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.6 4.1 29.6 2 24 2 11.8 2 2 11.8 2 24s9.8 22 22 22 22-9.8 22-22c0-1.5-.2-2.6-.4-3.5z"/><path fill="#FF3D00" d="M4.3 13.7l6.6 4.8C12.7 15 18 11 24 11c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.6 4.1 29.6 2 24 2 15.5 2 8.2 6.9 4.3 13.7z"/><path fill="#4CAF50" d="M24 46c5.5 0 10.4-2.1 14.1-5.5l-6.5-5.5C29.6 36.6 26.9 37.5 24 37.5c-5.2 0-9.6-3.3-11.2-7.9l-6.5 5C10.1 41 16.5 46 24 46z"/><path fill="#1976D2" d="M43.6 20.5H24v8h11.3c-.8 2.2-2.2 4.1-4.1 5.5l6.5 5.5C41.4 36.4 46 30.9 46 24c0-1.5-.2-2.6-.4-3.5z"/></svg>
       Continue with Google
     </button>
+    <div class="auth-divider"><span>or</span></div>
+    <div class="auth-email-form">
+      <input id="authEmail" type="email" inputmode="email" autocomplete="email" placeholder="Email">
+      <input id="authPassword" type="password" autocomplete="current-password" placeholder="Password">
+      <button class="btn" id="authSubmitBtn" style="width:100%;margin-top:10px">Sign in</button>
+      <div class="auth-row">
+        <button class="link" id="authToggleModeBtn">Create an account</button>
+        <button class="link" id="authForgotBtn">Forgot password?</button>
+      </div>
+    </div>
     <button class="link" id="skipAuthBtn" style="color:var(--muted);margin-top:14px">Use offline on this device</button>
   </div>
 </div>
@@ -2940,6 +2956,7 @@ async function authInit(){
     if(session && session.user){ curUid=session.user.id; sbUser=session.user; hideAuthGate(); await pullRemote(); onSignedIn(); }
     else { showAuthGate(); }
     sb.auth.onAuthStateChange((_e, sess)=>{
+      if(_e==="PASSWORD_RECOVERY"){ openSetNewPasswordModal(); }
       const uid = sess && sess.user ? sess.user.id : null;
       if(uid===curUid) return;                            // no actual change
       curUid=uid;
@@ -2965,6 +2982,58 @@ function adoptData(obj){
 async function signInGoogle(){
   if(!sb) return;
   await sb.auth.signInWithOAuth({ provider:"google", options:{ redirectTo: location.origin + location.pathname } });
+}
+let authMode="signin";
+function updateAuthFormUI(){
+  const btn=$("#authSubmitBtn"), toggle=$("#authToggleModeBtn"), forgot=$("#authForgotBtn");
+  if(!btn) return;
+  btn.textContent = authMode==="signin" ? "Sign in" : "Create account";
+  toggle.textContent = authMode==="signin" ? "Create an account" : "Already have an account?";
+  forgot.style.display = authMode==="signin" ? "" : "none";
+}
+async function submitAuthForm(){
+  if(!sb) return;
+  const email=($("#authEmail").value||"").trim(), pw=$("#authPassword").value||"";
+  if(!email || email.indexOf("@")<1){ toast("Enter a valid email"); return; }
+  if(pw.length<6){ toast("Password must be at least 6 characters"); return; }
+  const btn=$("#authSubmitBtn"); btn.disabled=true;
+  try{
+    if(authMode==="signin"){
+      const { error } = await sb.auth.signInWithPassword({ email, password:pw });
+      if(error){ toast(error.message||"Sign in failed"); return; }
+    } else {
+      const { data, error } = await sb.auth.signUp({ email, password:pw, options:{ emailRedirectTo: location.origin+location.pathname } });
+      if(error){ toast(error.message||"Sign up failed"); return; }
+      if(!data.session){ toast("Check your email to confirm your account ✓"); }
+    }
+  }catch(e){ toast("Something went wrong"); }
+  finally{ btn.disabled=false; }
+}
+async function forgotPassword(){
+  if(!sb) return;
+  const email=($("#authEmail").value||"").trim();
+  if(!email || email.indexOf("@")<1){ toast("Enter your email above first"); return; }
+  try{
+    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin+location.pathname });
+    if(error){ toast(error.message||"Couldn't send reset email"); return; }
+    toast("Password reset email sent ✓");
+  }catch(e){ toast("Couldn't send reset email"); }
+}
+function openSetNewPasswordModal(){
+  openModal(`<h2 style="margin-top:0">Set a new password</h2>
+    <div class="modal-note">Choose a new password for your account.</div>
+    <input id="newPwInput" type="password" autocomplete="new-password" placeholder="New password" style="margin-top:10px">
+    <button class="btn" id="newPwSaveBtn" style="width:100%;margin-top:14px">Save password</button>`);
+  $("#newPwInput").focus();
+  $("#newPwSaveBtn").onclick=async ()=>{
+    const pw=$("#newPwInput").value||"";
+    if(pw.length<6){ toast("Password must be at least 6 characters"); return; }
+    try{
+      const { error } = await sb.auth.updateUser({ password: pw });
+      if(error){ toast(error.message||"Couldn't update password"); return; }
+      toast("Password updated ✓"); closeModal();
+    }catch(e){ toast("Couldn't update password"); }
+  };
 }
 async function signOutUser(){
   if(!sb) return;
@@ -4480,6 +4549,11 @@ function closeProgram(){
 /* ---------- events ---------- */
 $("#googleBtn").onclick=signInGoogle;
 $("#skipAuthBtn").onclick=hideAuthGate;
+$("#authSubmitBtn").onclick=submitAuthForm;
+$("#authForgotBtn").onclick=forgotPassword;
+$("#authToggleModeBtn").onclick=()=>{ authMode = authMode==="signin"?"signup":"signin"; updateAuthFormUI(); };
+$("#authPassword").onkeydown=e=>{ if(e.key==="Enter") submitAuthForm(); };
+updateAuthFormUI();
 if($("#usernameGateInput")) $("#usernameGateInput").oninput=()=>{
   $("#usernameGateSaveBtn").disabled = $("#usernameGateInput").value.trim().length<2;
 };
