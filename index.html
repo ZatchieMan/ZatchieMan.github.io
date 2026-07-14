@@ -356,7 +356,7 @@
     <!-- start screen -->
     <div id="woStart">
       <div class="card lvl-card"><div id="levelBox"></div></div>
-      <button class="btn ghost lb-btn hidden" id="leaderboardBtn">🏆 Leaderboard</button>
+      <button class="btn ghost lb-btn hidden" id="leaderboardBtn">Leaderboard</button>
       <div class="nextup hidden" id="nextUpCard">
         <div class="k">Next up</div>
         <div class="name" id="nextUpName"></div>
@@ -3028,7 +3028,7 @@ async function refreshSocial(){
 function socWho(o){ return (o && o.display_name && o.display_name.trim()) ? o.display_name : ((o && o.email) || "friend"); }
 async function openLeaderboard(){
   if(!socialOn()){ toast("Sign in to see the leaderboard"); return; }
-  openModal('<h2 style="margin-top:0">🏆 Leaderboard</h2><div id="lbBody"><div class="empty">Loading…</div></div>');
+  openModal('<h2 style="margin-top:0">Leaderboard</h2><div id="lbBody"><div class="empty">Loading…</div></div>');
   let rows=[];
   try{
     const { data:res, error } = await sb.rpc("list_leaderboard");
