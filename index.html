@@ -3010,10 +3010,23 @@ async function submitAuthForm(){
   }catch(e){ toast("Something went wrong"); }
   finally{ btn.disabled=false; }
 }
-async function forgotPassword(){
+function forgotPassword(){
   if(!sb) return;
-  const email=($("#authEmail").value||"").trim();
-  if(!email || email.indexOf("@")<1){ toast("Enter your email above first"); return; }
+  const existing=($("#authEmail").value||"").trim();
+  if(existing && existing.indexOf("@")>0){ sendPasswordReset(existing); return; }
+  openModal(`<h2 style="margin-top:0">Reset your password</h2>
+    <div class="modal-note">Enter your account email and we'll send you a reset link.</div>
+    <input id="resetEmailInput" type="email" inputmode="email" autocomplete="email" placeholder="Email" style="margin-top:10px">
+    <button class="btn" id="resetEmailSendBtn" style="width:100%;margin-top:14px">Send reset link</button>`);
+  $("#resetEmailInput").focus();
+  $("#resetEmailSendBtn").onclick=()=>{
+    const email=($("#resetEmailInput").value||"").trim();
+    if(!email || email.indexOf("@")<1){ toast("Enter a valid email"); return; }
+    closeModal();
+    sendPasswordReset(email);
+  };
+}
+async function sendPasswordReset(email){
   try{
     const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin+location.pathname });
     if(error){ toast(error.message||"Couldn't send reset email"); return; }
