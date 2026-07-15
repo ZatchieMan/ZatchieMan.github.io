@@ -2955,20 +2955,32 @@ function initSupabase(){
   sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 }
 let curUid=null;
+function isRecoveryLink(){
+  return /type=recovery/.test(location.hash) || /type=recovery/.test(location.search);
+}
 async function authInit(){
   initSupabase();
   if(!sb){ hideAuthGate(); return; }                     // local-only mode, no gate
+  // Supabase's client parses a password-recovery token from the URL as part of its own
+  // init, which races ahead of getSession() below — so the PASSWORD_RECOVERY event from
+  // onAuthStateChange can fire before we've even attached the listener. Check the URL
+  // ourselves instead of relying on catching that exact event.
+  const recoveryPending = isRecoveryLink();
+  function maybeShowRecovery(){
+    if(!recoveryPending) return;
+    openSetNewPasswordModal();
+    history.replaceState(null, "", location.pathname);
+  }
   try{
     const { data:{ session } } = await sb.auth.getSession();
-    if(session && session.user){ curUid=session.user.id; sbUser=session.user; hideAuthGate(); await pullRemote(); onSignedIn(); }
+    if(session && session.user){ curUid=session.user.id; sbUser=session.user; hideAuthGate(); await pullRemote(); onSignedIn(); maybeShowRecovery(); }
     else { showAuthGate(); }
     sb.auth.onAuthStateChange((_e, sess)=>{
-      if(_e==="PASSWORD_RECOVERY"){ openSetNewPasswordModal(); }
       const uid = sess && sess.user ? sess.user.id : null;
       if(uid===curUid) return;                            // no actual change
       curUid=uid;
       clearTimeout(pushTimer);                            // never push previous user's data
-      if(uid){ sbUser=sess.user; hideAuthGate(); pullRemote(); onSignedIn(); }
+      if(uid){ sbUser=sess.user; hideAuthGate(); pullRemote(); onSignedIn(); maybeShowRecovery(); }
       else { sbUser=null; showAuthGate(); }
     });
   }catch(e){ console.warn("auth init failed", e); hideAuthGate(); }
