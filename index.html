@@ -386,7 +386,7 @@
       <div class="card">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
           <div><h2 id="woTitle" style="margin:0">Workout</h2><div id="woSub" style="color:var(--muted);font-size:13px;margin-top:2px"></div></div>
-          <div style="flex:0 0 auto"><label>Date</label><input type="date" id="woDate" class="num-in" style="width:auto"></div>
+          <div style="flex:0 0 auto" id="woDateWrap"><label>Date</label><input type="date" id="woDate" class="num-in" style="width:auto"></div>
         </div>
       </div>
       <div id="woExercises"></div>
@@ -3751,6 +3751,7 @@ function renderActive(){
   $("#woTitle").textContent = active.editing ? "Edit workout" : (active.programName ? active.programName : "Freestyle workout");
   $("#woSub").textContent = active.editing ? (active.dayName?active.dayName:"Adjust sets and save") : (active.dayName ? active.dayName : "Add exercises as you go");
   $("#woDate").value = active.date;
+  $("#woDateWrap").style.display = active.editing ? "" : "none";
   $("#finishWoBtn").textContent = active.editing ? "Save changes" : "Finish & save workout";
   $("#cancelWoBtn").textContent = active.editing ? "Discard changes" : "Cancel workout";
 
