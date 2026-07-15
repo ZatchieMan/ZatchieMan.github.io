@@ -2944,8 +2944,8 @@ const SUPABASE_URL = "https://ilmnuygckesuimmfxuqz.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlsbW51eWdja2VzdWltbWZ4dXF6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM2MTUxNjUsImV4cCI6MjA5OTE5MTE2NX0.AZDuvvpiGlaZ0Y5HQwOSvkK2idg5ll3GJqW8jFnVzjA";
 /* Public VAPID key for workout-reminder push notifications — safe to ship publicly, pairs with a private key held only by the Supabase Edge Function. */
 const VAPID_PUBLIC_KEY = "BMoTeGOyir5mk2l1Gxk4s0DC2Ck38r4z8HH1Q8kYOjgWt9bfvTdg7TUEAKO9WXMwtjx9015GfDKZhU6ITUlbWIY";
-/* Stripe Payment Link for the Iron Log Premium monthly subscription. */
-const PREMIUM_PAYMENT_LINK = "https://buy.stripe.com/3cI4gBady9Mx8yT0IA2cg00";
+/* Stripe Payment Link for the Iron Log Premium monthly subscription. TEST MODE — swap for the live-mode link (and matching live Stripe keys/webhook) before real users pay. */
+const PREMIUM_PAYMENT_LINK = "https://buy.stripe.com/test_14A00j0Tgbge66mdn3cEw00";
 
 let sb=null, sbUser=null, pushTimer=null;
 function supaConfigured(){ return SUPABASE_URL.indexOf("YOUR-")<0 && SUPABASE_ANON_KEY.indexOf("YOUR-")<0; }
