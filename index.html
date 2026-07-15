@@ -2965,9 +2965,10 @@ async function authInit(){
   // init, which races ahead of getSession() below — so the PASSWORD_RECOVERY event from
   // onAuthStateChange can fire before we've even attached the listener. Check the URL
   // ourselves instead of relying on catching that exact event.
-  const recoveryPending = isRecoveryLink();
+  let recoveryPending = isRecoveryLink();
   function maybeShowRecovery(){
     if(!recoveryPending) return;
+    recoveryPending = false;                                // one-shot: never re-trigger later in this page session
     openSetNewPasswordModal();
     history.replaceState(null, "", location.pathname);
   }
