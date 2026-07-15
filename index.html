@@ -3167,8 +3167,14 @@ function checkUpgradeRedirect(){
   const poll=setInterval(async ()=>{
     tries++;
     await fetchMyProfile();
-    if(isPremium()){ clearInterval(poll); toast("Welcome to Premium ✓"); renderProfile(); }
-    else if(tries>=6){ clearInterval(poll); }
+    if(isPremium()){
+      clearInterval(poll); renderProfile();
+      openModal(`<h2 style="margin-top:0">Premium activated</h2>
+        <div class="modal-note">Thanks for upgrading! You now have unlimited programs, full progress history, and CSV export.</div>
+        <button class="btn" id="premiumWelcomeDone" style="width:100%;margin-top:14px">Let's go</button>`);
+      $("#premiumWelcomeDone").onclick=closeModal;
+    }
+    else if(tries>=6){ clearInterval(poll); toast("Still activating your subscription — check back in a moment"); }
   }, 1500);
 }
 function maybeShowUsernameGate(){
