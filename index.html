@@ -549,6 +549,7 @@
         <h2>Data</h2>
         <button class="btn ghost" id="exportBtn" style="width:100%">Export CSV</button>
         <button class="btn ghost" id="resetBtn" style="width:100%;margin-top:10px;color:var(--danger)">Reset all data</button>
+        <button class="btn ghost" id="deleteAccountBtn" style="width:100%;margin-top:10px;color:var(--danger);display:none">Delete account</button>
       </div>
     </div>
   </section>
@@ -3172,6 +3173,45 @@ async function openManageSubscription(){
     else toast(j.error||"Couldn't open billing portal");
   }catch(e){ toast("Couldn't open billing portal"); }
 }
+function openDeleteAccountModal(){
+  if(!socialOn()) return;
+  openModal(`<h2 style="margin-top:0">Delete account</h2>
+    <p>This permanently deletes:</p>
+    <ul style="color:var(--text);font-size:14px;line-height:1.7;padding-left:20px;margin:0 0 14px">
+      <li>Your account and sign-in credentials</li>
+      <li>All exercises, workouts, and programs</li>
+      <li>Progress history, personal records, and weight log</li>
+      <li>Friend connections and shared programs</li>
+      <li>Your active Premium subscription, if any (canceled immediately)</li>
+    </ul>
+    <div class="modal-note">This can't be undone.</div>
+    <button class="btn ghost" id="deleteAcctStartBtn" style="width:100%;margin-top:14px;color:var(--danger)">Delete my account</button>
+    <div id="deleteAcctConfirmBox" class="hidden" style="margin-top:12px">
+      <div class="modal-note" style="color:var(--danger);font-weight:600">Are you absolutely sure?</div>
+      <button class="btn ghost" id="deleteAcctConfirmBtn" style="width:100%;margin-top:10px;color:var(--danger)">Yes, permanently delete everything</button>
+    </div>
+    <div id="deleteAcctStatus" class="modal-note" style="margin-top:10px"></div>`);
+  $("#deleteAcctStartBtn").onclick=()=>{ $("#deleteAcctConfirmBox").classList.remove("hidden"); $("#deleteAcctStartBtn").classList.add("hidden"); };
+  $("#deleteAcctConfirmBtn").onclick=async ()=>{
+    const btn=$("#deleteAcctConfirmBtn"); btn.disabled=true;
+    $("#deleteAcctStatus").textContent="Deleting your account…";
+    try{
+      const { data:{ session } } = await sb.auth.getSession();
+      const r = await fetch(SUPABASE_URL+"/functions/v1/delete-account", {
+        method:"POST", headers:{ Authorization:"Bearer "+session.access_token }
+      });
+      const j = await r.json();
+      if(!r.ok || j.error){ $("#deleteAcctStatus").textContent = j.error||"Something went wrong. Please try again or email us."; btn.disabled=false; return; }
+      closeModal();
+      store.del(KEY); store.del(AKEY);
+      try{ await sb.auth.signOut(); }catch(e){}
+      sbUser=null; curUid=null; data=freshData(); data._owner=null; active=null;
+      friendsCache=[]; reqCache=[]; inboxCache=[]; myProfile=null;
+      refreshAll(); showStart(); showAuthGate();
+      toast("Your account has been deleted");
+    }catch(e){ $("#deleteAcctStatus").textContent="Something went wrong. Please try again or email us."; btn.disabled=false; }
+  };
+}
 function checkUpgradeRedirect(){
   if(location.search.indexOf("upgraded=1")<0) return;
   history.replaceState(null, "", location.pathname);
@@ -4031,6 +4071,7 @@ function renderProfile(){
   renderUnitToggle();
   renderHeightUnitToggle();
   renderPremiumCard();
+  if($("#deleteAccountBtn")) $("#deleteAccountBtn").style.display = socialOn() ? "" : "none";
 }
 function renderPremiumCard(){
   const card=$("#premiumCard"), body=$("#premiumBody");
@@ -4785,6 +4826,7 @@ $("#resetBtn").onclick=()=>{
     data={exercises:[],logs:[],programs:[]}; load(); refreshAll(); showStart(); closeProgram(); toast("All data reset");
   }
 };
+if($("#deleteAccountBtn")) $("#deleteAccountBtn").onclick=openDeleteAccountModal;
 
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{
   document.querySelectorAll("nav button").forEach(x=>x.classList.remove("active"));

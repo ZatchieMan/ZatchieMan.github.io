@@ -1,0 +1,127 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Iron Log — Delete Account</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{ --bg:#16181c; --surface:#1f2329; --surface-2:#262b32; --text:#e8e6e1; --muted:#8a929c; --accent:#f5b301; --line:#333b44; --danger:#e5484d; }
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,sans-serif;line-height:1.6;margin:0;padding:32px 18px 64px}
+  .wrap{max-width:420px;margin:0 auto}
+  .brand{display:flex;align-items:center;justify-content:center;gap:9px;margin-bottom:24px}
+  .brand .bar{width:4px;height:22px;background:var(--accent);border-radius:2px}
+  .brand h1{font-family:"Barlow Condensed",sans-serif;font-weight:600;letter-spacing:.22em;text-transform:uppercase;font-size:22px;margin:0}
+  h2{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;letter-spacing:.03em;font-size:19px;margin:0 0 12px}
+  p{font-size:14.5px;color:var(--text)}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:22px;margin-top:18px}
+  .muted{color:var(--muted);font-size:13px}
+  button{width:100%;border:none;border-radius:10px;padding:13px;font-family:"Barlow Condensed",sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:.04em;font-size:15px;cursor:pointer}
+  .btn-google{display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;color:#181510}
+  .btn-danger{background:var(--danger);color:#fff;margin-top:10px}
+  .btn-danger:disabled{opacity:.5;pointer-events:none}
+  input{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:12px;font-size:15px;font-family:inherit;margin-top:8px}
+  .signedin{font-size:13px;color:var(--muted);margin-bottom:14px}
+  .warn-list{padding-left:20px;font-size:14px;color:var(--text)}
+  .hidden{display:none}
+  a{color:var(--accent)}
+  #status{margin-top:14px;font-size:13px;color:var(--muted)}
+</style>
+<div class="wrap">
+  <div class="brand"><div class="bar"></div><h1>Iron Log</h1></div>
+
+  <div class="card" id="signinCard">
+    <h2>Delete your account</h2>
+    <p class="muted">Sign in to permanently delete your Iron Log account and all associated data.</p>
+    <button class="btn-google" id="googleBtn">
+      <svg viewBox="0 0 48 48" width="18" height="18"><path fill="#FFC107" d="M43.6 20.5h-1.9V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.6 4.1 29.6 2 24 2 11.8 2 2 11.8 2 24s9.8 22 22 22 22-9.8 22-22c0-1.5-.2-2.6-.4-3.5z"/><path fill="#FF3D00" d="M4.3 13.7l6.6 4.8C12.7 15 18 11 24 11c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.6 4.1 29.6 2 24 2 15.5 2 8.2 6.9 4.3 13.7z"/><path fill="#4CAF50" d="M24 46c5.5 0 10.4-2.1 14.1-5.5l-6.5-5.5C29.6 36.6 26.9 37.5 24 37.5c-5.2 0-9.6-3.3-11.2-7.9l-6.5 5C10.1 41 16.5 46 24 46z"/><path fill="#1976D2" d="M43.6 20.5H24v8h11.3c-.8 2.2-2.2 4.1-4.1 5.5l6.5 5.5C41.4 36.4 46 30.9 46 24c0-1.5-.2-2.6-.4-3.5z"/></svg>
+      Continue with Google
+    </button>
+    <input id="emailInput" type="email" placeholder="Email">
+    <input id="passwordInput" type="password" placeholder="Password">
+    <button id="emailSigninBtn" style="background:var(--accent);color:#181510;margin-top:8px">Sign in with email</button>
+    <div id="status"></div>
+  </div>
+
+  <div class="card hidden" id="deleteCard">
+    <h2>Delete your account</h2>
+    <div class="signedin">Signed in as <b id="whoami"></b> — <button class="link" id="signOutBtn" style="width:auto;display:inline;background:none;color:var(--muted);text-transform:none;letter-spacing:0;font-family:inherit;font-weight:400;padding:0;text-decoration:underline">not you?</button></div>
+    <p>This permanently deletes:</p>
+    <ul class="warn-list">
+      <li>Your account and sign-in credentials</li>
+      <li>All exercises, workouts, and programs</li>
+      <li>Progress history, personal records, and weight log</li>
+      <li>Friend connections and shared programs</li>
+      <li>Your active Premium subscription, if any (canceled immediately)</li>
+    </ul>
+    <p class="muted">This can't be undone.</p>
+    <button class="btn-danger" id="startDeleteBtn">Delete my account</button>
+    <div class="hidden" id="confirmBox" style="margin-top:14px">
+      <p style="color:var(--danger);font-weight:600">Are you absolutely sure?</p>
+      <button class="btn-danger" id="confirmDeleteBtn">Yes, permanently delete everything</button>
+    </div>
+    <div id="deleteStatus" class="muted" style="margin-top:12px"></div>
+  </div>
+
+  <div class="card hidden" id="doneCard">
+    <h2>Account deleted</h2>
+    <p>Your Iron Log account and all associated data have been permanently deleted.</p>
+  </div>
+
+  <p class="muted" style="text-align:center;margin-top:24px">Questions? <a href="mailto:zackarias.nil@gmail.com">zackarias.nil@gmail.com</a> · <a href="privacy.html">Privacy policy</a></p>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = "https://ilmnuygckesuimmfxuqz.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlsbW51eWdja2VzdWltbWZ4dXF6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM2MTUxNjUsImV4cCI6MjA5OTE5MTE2NX0.AZDuvvpiGlaZ0Y5HQwOSvkK2idg5ll3GJqW8jFnVzjA";
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const $ = s => document.querySelector(s);
+
+function setStatus(msg){ $("#status").textContent = msg||""; }
+
+async function refreshUI(){
+  const { data:{ session } } = await sb.auth.getSession();
+  if(session && session.user){
+    $("#signinCard").classList.add("hidden");
+    $("#deleteCard").classList.remove("hidden");
+    $("#whoami").textContent = session.user.email || "your account";
+  } else {
+    $("#signinCard").classList.remove("hidden");
+    $("#deleteCard").classList.add("hidden");
+  }
+}
+
+$("#googleBtn").onclick = async () => {
+  await sb.auth.signInWithOAuth({ provider:"google", options:{ redirectTo: location.origin + location.pathname } });
+};
+$("#emailSigninBtn").onclick = async () => {
+  const email = ($("#emailInput").value||"").trim(), pw = $("#passwordInput").value||"";
+  if(!email || email.indexOf("@")<1){ setStatus("Enter a valid email"); return; }
+  if(!pw){ setStatus("Enter your password"); return; }
+  setStatus("Signing in…");
+  const { error } = await sb.auth.signInWithPassword({ email, password: pw });
+  if(error){ setStatus(error.message||"Sign in failed"); return; }
+  setStatus("");
+  refreshUI();
+};
+$("#signOutBtn").onclick = async () => { await sb.auth.signOut(); refreshUI(); };
+$("#startDeleteBtn").onclick = () => { $("#confirmBox").classList.remove("hidden"); $("#startDeleteBtn").classList.add("hidden"); };
+$("#confirmDeleteBtn").onclick = async () => {
+  const btn = $("#confirmDeleteBtn"); btn.disabled = true;
+  $("#deleteStatus").textContent = "Deleting your account…";
+  try{
+    const { data:{ session } } = await sb.auth.getSession();
+    const r = await fetch(SUPABASE_URL+"/functions/v1/delete-account", {
+      method:"POST", headers:{ Authorization:"Bearer "+session.access_token }
+    });
+    const j = await r.json();
+    if(!r.ok || j.error){ $("#deleteStatus").textContent = j.error || "Something went wrong. Please try again or email us."; btn.disabled=false; return; }
+    await sb.auth.signOut();
+    $("#deleteCard").classList.add("hidden");
+    $("#doneCard").classList.remove("hidden");
+  }catch(e){ $("#deleteStatus").textContent = "Something went wrong. Please try again or email us."; btn.disabled=false; }
+};
+
+sb.auth.onAuthStateChange(()=>refreshUI());
+refreshUI();
+</script>
