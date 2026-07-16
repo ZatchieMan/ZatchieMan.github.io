@@ -49,8 +49,9 @@
     <p class="muted">This can't be undone.</p>
     <button class="btn-danger" id="startDataOnlyBtn">Delete my workout data</button>
     <div class="hidden" id="dataOnlyConfirmBox" style="margin-top:14px">
-      <p style="color:var(--danger);font-weight:600">Are you sure?</p>
-      <button class="btn-danger" id="confirmDataOnlyBtn">Yes, erase my workout data</button>
+      <p style="color:var(--danger);font-weight:600">Type your email address to confirm:</p>
+      <input id="dataOnlyConfirmInput" type="text" autocomplete="off" placeholder="your@email.com">
+      <button class="btn-danger" id="confirmDataOnlyBtn" disabled>Yes, erase my workout data</button>
     </div>
     <div id="dataOnlyStatus" class="muted" style="margin-top:12px"></div>
   </div>
@@ -69,8 +70,9 @@
     <p class="muted">This can't be undone.</p>
     <button class="btn-danger" id="startDeleteBtn">Delete my account</button>
     <div class="hidden" id="confirmBox" style="margin-top:14px">
-      <p style="color:var(--danger);font-weight:600">Are you absolutely sure?</p>
-      <button class="btn-danger" id="confirmDeleteBtn">Yes, permanently delete everything</button>
+      <p style="color:var(--danger);font-weight:600">Type your email address to confirm:</p>
+      <input id="confirmInput" type="text" autocomplete="off" placeholder="your@email.com">
+      <button class="btn-danger" id="confirmDeleteBtn" disabled>Yes, permanently delete everything</button>
     </div>
     <div id="deleteStatus" class="muted" style="margin-top:12px"></div>
   </div>
@@ -121,7 +123,22 @@ $("#emailSigninBtn").onclick = async () => {
   refreshUI();
 };
 $("#signOutBtn").onclick = async () => { await sb.auth.signOut(); refreshUI(); };
-$("#startDataOnlyBtn").onclick = () => { $("#dataOnlyConfirmBox").classList.remove("hidden"); $("#startDataOnlyBtn").classList.add("hidden"); };
+
+function wireTypedConfirm(inputId, btnId){
+  const input = $(inputId), btn = $(btnId);
+  input.oninput = async () => {
+    const { data:{ session } } = await sb.auth.getSession();
+    const expected = ((session && session.user && session.user.email) || "").trim().toLowerCase();
+    btn.disabled = !expected || input.value.trim().toLowerCase() !== expected;
+  };
+}
+wireTypedConfirm("#dataOnlyConfirmInput", "#confirmDataOnlyBtn");
+wireTypedConfirm("#confirmInput", "#confirmDeleteBtn");
+
+$("#startDataOnlyBtn").onclick = () => {
+  $("#dataOnlyConfirmBox").classList.remove("hidden"); $("#startDataOnlyBtn").classList.add("hidden");
+  $("#dataOnlyConfirmInput").value = ""; $("#confirmDataOnlyBtn").disabled = true;
+};
 $("#confirmDataOnlyBtn").onclick = async () => {
   const btn = $("#confirmDataOnlyBtn"); btn.disabled = true;
   $("#dataOnlyStatus").textContent = "Deleting your workout data…";
@@ -134,7 +151,10 @@ $("#confirmDataOnlyBtn").onclick = async () => {
     $("#dataOnlyStatus").textContent = "Your workout data has been deleted. Your account is unaffected.";
   }catch(e){ $("#dataOnlyStatus").textContent = "Something went wrong. Please try again or email us."; btn.disabled=false; }
 };
-$("#startDeleteBtn").onclick = () => { $("#confirmBox").classList.remove("hidden"); $("#startDeleteBtn").classList.add("hidden"); };
+$("#startDeleteBtn").onclick = () => {
+  $("#confirmBox").classList.remove("hidden"); $("#startDeleteBtn").classList.add("hidden");
+  $("#confirmInput").value = ""; $("#confirmDeleteBtn").disabled = true;
+};
 $("#confirmDeleteBtn").onclick = async () => {
   const btn = $("#confirmDeleteBtn"); btn.disabled = true;
   $("#deleteStatus").textContent = "Deleting your account…";

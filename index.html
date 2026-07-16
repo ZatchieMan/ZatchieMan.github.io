@@ -3187,11 +3187,19 @@ function openDeleteAccountModal(){
     <div class="modal-note">This can't be undone.</div>
     <button class="btn ghost" id="deleteAcctStartBtn" style="width:100%;margin-top:14px;color:var(--danger)">Delete my account</button>
     <div id="deleteAcctConfirmBox" class="hidden" style="margin-top:12px">
-      <div class="modal-note" style="color:var(--danger);font-weight:600">Are you absolutely sure?</div>
-      <button class="btn ghost" id="deleteAcctConfirmBtn" style="width:100%;margin-top:10px;color:var(--danger)">Yes, permanently delete everything</button>
+      <div class="modal-note" style="color:var(--danger);font-weight:600">Type your email address to confirm:</div>
+      <input id="deleteAcctConfirmInput" type="text" autocomplete="off" placeholder="your@email.com" style="margin-top:8px">
+      <button class="btn ghost" id="deleteAcctConfirmBtn" style="width:100%;margin-top:10px;color:var(--danger)" disabled>Yes, permanently delete everything</button>
     </div>
     <div id="deleteAcctStatus" class="modal-note" style="margin-top:10px"></div>`);
-  $("#deleteAcctStartBtn").onclick=()=>{ $("#deleteAcctConfirmBox").classList.remove("hidden"); $("#deleteAcctStartBtn").classList.add("hidden"); };
+  $("#deleteAcctStartBtn").onclick=()=>{
+    $("#deleteAcctConfirmBox").classList.remove("hidden"); $("#deleteAcctStartBtn").classList.add("hidden");
+    $("#deleteAcctConfirmInput").value=""; $("#deleteAcctConfirmBtn").disabled=true;
+  };
+  $("#deleteAcctConfirmInput").oninput=()=>{
+    const expected=((sbUser&&sbUser.email)||"").trim().toLowerCase();
+    $("#deleteAcctConfirmBtn").disabled = !expected || $("#deleteAcctConfirmInput").value.trim().toLowerCase()!==expected;
+  };
   $("#deleteAcctConfirmBtn").onclick=async ()=>{
     const btn=$("#deleteAcctConfirmBtn"); btn.disabled=true;
     $("#deleteAcctStatus").textContent="Deleting your account…";
