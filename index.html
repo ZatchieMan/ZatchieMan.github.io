@@ -3500,7 +3500,7 @@ function dayLastDone(dayId){
   return ds.length?ds[ds.length-1]:null;
 }
 // Renders a day's exercises with target sets×reps and what you did the last time you trained THIS day.
-function dayPlanHTML(d){
+function dayPlanHTML(d, showName=true){
   const body = d.items.length ? groupItems(d.items).map(run=>{
     const rows=run.map(({it})=>{
       const exId=exIdByName(it.name);
@@ -3512,27 +3512,37 @@ function dayPlanHTML(d){
     }).join("");
     return run.length>1 ? `<div class="ss-group"><div class="ss-label">⛓ Superset</div>${rows}</div>` : rows;
   }).join("") : `<div class="empty" style="padding:4px 0">No exercises.</div>`;
-  return `<div class="dname center">${esc(d.name)}</div>${body}`;
+  return (showName ? `<div class="dname center">${esc(d.name)}</div>` : "") + body;
 }
 
 /* ---------- standalone days (day workouts that live outside any program) ---------- */
 let dayDraft=null;
+let dayListOpen=new Set();
 function renderDayList(){
   const box=$("#dayList"); if(!box) return;
   const days=data.standaloneDays||[];
   if(!days.length){ box.innerHTML=`<div class="empty">No standalone days yet. Add one below for a quick workout template you can start anytime.</div>`; return; }
-  box.innerHTML=days.map(d=>`<div class="daycard">${dayPlanHTML(d)}
-    <div style="display:flex;gap:16px;justify-content:center;margin-top:10px;flex-wrap:wrap">
-      <button class="link start-day" data-id="${d.id}" style="color:var(--accent)">Start</button>
-      <button class="link edit-day" data-id="${d.id}">Edit</button>
-      <button class="link del-day" data-id="${d.id}" style="color:var(--danger)">Delete</button>
-    </div></div>`).join("");
-  box.querySelectorAll(".start-day").forEach(b=>b.onclick=()=>startStandaloneDay(b.dataset.id));
-  box.querySelectorAll(".edit-day").forEach(b=>b.onclick=()=>startDayBuild(b.dataset.id));
-  box.querySelectorAll(".del-day").forEach(b=>b.onclick=()=>{
+  box.innerHTML=days.map(d=>{
+    const open=dayListOpen.has(d.id);
+    const detail=open?`<div class="hx-detail">${dayPlanHTML(d,false)}
+      <div style="display:flex;gap:16px;justify-content:center;margin-top:10px;flex-wrap:wrap">
+        <button class="link start-day" data-id="${d.id}" style="color:var(--accent)">Start</button>
+        <button class="link edit-day" data-id="${d.id}">Edit</button>
+        <button class="link del-day" data-id="${d.id}" style="color:var(--danger)">Delete</button>
+      </div></div>`:"";
+    return `<div class="daycard">
+      <div class="hx-head" data-id="${d.id}"><span><b>${esc(d.name)}</b><span class="hx-date">${d.items.length} exercise${d.items.length===1?"":"s"}</span></span><span class="hx-toggle">${open?"−":"+"}</span></div>
+      ${detail}</div>`;
+  }).join("");
+  box.querySelectorAll(".hx-head").forEach(h=>h.onclick=()=>{ const id=h.dataset.id; dayListOpen.has(id)?dayListOpen.delete(id):dayListOpen.add(id); renderDayList(); });
+  box.querySelectorAll(".start-day").forEach(b=>b.onclick=e=>{ e.stopPropagation(); startStandaloneDay(b.dataset.id); });
+  box.querySelectorAll(".edit-day").forEach(b=>b.onclick=e=>{ e.stopPropagation(); startDayBuild(b.dataset.id); });
+  box.querySelectorAll(".del-day").forEach(b=>b.onclick=e=>{
+    e.stopPropagation();
     const d=days.find(x=>x.id===b.dataset.id); if(!d) return;
     if(!confirm(`Delete "${d.name}"?`)) return;
     data.standaloneDays=data.standaloneDays.filter(x=>x.id!==d.id);
+    dayListOpen.delete(d.id);
     save(); renderDayList(); toast("Day deleted");
   });
 }
@@ -3606,6 +3616,10 @@ function sessionTitle(s){
   const d=p&&s.dayId?p.days.find(x=>x.id===s.dayId):null;
   if(p&&d) return `${p.name} · ${d.name}`;
   if(p) return p.name;
+  if(s.dayId){
+    const sd=(data.standaloneDays||[]).find(x=>x.id===s.dayId);
+    if(sd) return sd.name;
+  }
   return "Freestyle workout";
 }
 function renderRecent(){
@@ -3761,8 +3775,10 @@ function renderNextUp(){
 function openStartChooser(){
   openModal(`
     <h2 style="margin-top:0">Choose your workout</h2>
-    <label>Program</label>
-    <div id="woProgramDD" class="opts"></div>
+    <label>Days &amp; Freestyle</label>
+    <div id="woDaysDD" class="opts"></div>
+    <div style="margin-top:16px"><label>Programs</label>
+    <div id="woProgramDD" class="opts"></div></div>
     <div id="woDayWrap" class="hidden" style="margin-top:16px"><label>Day</label><div id="woDayDD" class="opts"></div></div>
     <div id="woPreview"></div>
     <button class="btn" id="chooserStart" style="width:100%;margin-top:16px">Start workout</button>
@@ -3772,25 +3788,30 @@ function openStartChooser(){
   $("#woOverviewLink").onclick=()=>{ const pid=data.lastProgramId; if(!pid){ toast("Pick a program first"); return; } closeModal(); document.querySelector('nav button[data-tab="programs"]').click(); openProgram(pid); };
 }
 function renderProgramPicker(){
-  const pbox=$("#woProgramDD"); if(!pbox) return;
+  const daysBox=$("#woDaysDD"), progBox=$("#woProgramDD"); if(!daysBox||!progBox) return;
   const kind=currentPickKind();
-  const curKey = kind==="freestyle" ? "f" : kind==="day" ? "d:"+data.lastDayId : "p:"+data.lastProgramId;
-  const opts=[{key:"f",name:"Freestyle — no program"}]
-    .concat(data.programs.map(p=>({key:"p:"+p.id,name:p.name})))
-    .concat((data.standaloneDays||[]).map(d=>({key:"d:"+d.id,name:"Day: "+d.name})));
-  pbox.innerHTML=opts.map(o=>`<button class="opt${curKey===o.key?" sel":""}" data-key="${o.key}">${esc(o.name)}</button>`).join("");
-  pbox.querySelectorAll(".opt").forEach(b=>b.onclick=()=>{
+
+  const dayCurKey = kind==="freestyle" ? "f" : kind==="day" ? "d:"+data.lastDayId : null;
+  const dayOpts=[{key:"f",name:"Freestyle — no program"}].concat((data.standaloneDays||[]).map(d=>({key:"d:"+d.id,name:d.name})));
+  daysBox.innerHTML=dayOpts.map(o=>`<button class="opt${dayCurKey===o.key?" sel":""}" data-key="${o.key}">${esc(o.name)}</button>`).join("");
+  daysBox.querySelectorAll(".opt").forEach(b=>b.onclick=()=>{
     const key=b.dataset.key;
     if(key==="f"){ data.lastPickKind="freestyle"; data.lastProgramId=null; data.lastDayId=null; }
-    else if(key.startsWith("p:")){
-      const id=key.slice(2); data.lastPickKind="program"; data.lastProgramId=id;
-      const p=data.programs.find(x=>x.id===id);
-      data.lastDayId=p&&p.days.length?p.days[0].id:null;
-    } else if(key.startsWith("d:")){
-      data.lastPickKind="day"; data.lastProgramId=null; data.lastDayId=key.slice(2);
-    }
+    else { data.lastPickKind="day"; data.lastProgramId=null; data.lastDayId=key.slice(2); }
     save(); renderProgramPicker();
   });
+
+  const progCurId = kind==="program" ? data.lastProgramId : null;
+  progBox.innerHTML = data.programs.length
+    ? data.programs.map(p=>`<button class="opt${progCurId===p.id?" sel":""}" data-pid="${p.id}">${esc(p.name)}</button>`).join("")
+    : `<div class="empty" style="padding:4px 0">No programs yet.</div>`;
+  progBox.querySelectorAll(".opt").forEach(b=>b.onclick=()=>{
+    const id=b.dataset.pid; data.lastPickKind="program"; data.lastProgramId=id;
+    const p=data.programs.find(x=>x.id===id);
+    data.lastDayId=p&&p.days.length?p.days[0].id:null;
+    save(); renderProgramPicker();
+  });
+
   const p = currentPickKind()==="program" ? data.programs.find(x=>x.id===data.lastProgramId) : null;
   const wrap=$("#woDayWrap"), dbox=$("#woDayDD");
   if(!p||!p.days.length){ wrap.classList.add("hidden"); dbox.innerHTML=""; if($("#woOverviewLink")) $("#woOverviewLink").style.display=(currentPickKind()==="program"&&data.lastProgramId)?"":"none"; renderWoPreview(); return; }
@@ -4750,7 +4771,7 @@ function renderDraftDays(){
     const wdPicker=`<div class="wd-picker">${DOW.map((n,wi)=>`<button class="wd-btn${(d.weekdays||[]).includes(wi)?" on":""}" data-d="${di}" data-wd="${wi}">${n}</button>`).join("")}</div>`;
     return `<div class="daycard">
       <div class="dh"><span class="dname">${esc(d.name)}</span>
-        <button class="link rm-day" data-d="${di}">Remove day</button></div>
+        <span style="display:flex;gap:14px;flex-shrink:0"><button class="link save-day" data-d="${di}">Save as day</button><button class="link rm-day" data-d="${di}">Remove day</button></span></div>
       ${wdPicker}
       ${items}${hint}
       <div class="item-add">
@@ -4768,6 +4789,15 @@ function renderDraftDays(){
     renderDraftDays();
   });
   box.querySelectorAll(".rm-day").forEach(b=>b.onclick=()=>{draft.days.splice(+b.dataset.d,1);renderDraftDays();});
+  box.querySelectorAll(".save-day").forEach(b=>b.onclick=()=>{
+    const d=draft.days[+b.dataset.d];
+    if(!d.name.trim()){ toast("Name the day first"); return; }
+    if(!d.items.length){ toast("Add at least one exercise first"); return; }
+    data.standaloneDays ||= [];
+    data.standaloneDays.push({id:uid(), name:d.name, items:d.items.map(it=>({name:it.name,sets:it.sets,reps:it.reps,ssPrev:!!it.ssPrev}))});
+    save(); renderDayList();
+    toast(`Saved "${d.name}" as a standalone day ✓`);
+  });
   box.querySelectorAll(".rm-item").forEach(b=>b.onclick=()=>{draft.days[+b.dataset.d].items.splice(+b.dataset.i,1);renderDraftDays();});
   box.querySelectorAll(".tg-ss").forEach(b=>b.onclick=()=>{const it=draft.days[+b.dataset.d].items[+b.dataset.i];it.ssPrev=!it.ssPrev;renderDraftDays();});
   box.querySelectorAll(".add-item").forEach(b=>b.onclick=()=>{
