@@ -4828,7 +4828,6 @@ function openProgram(id){
     if(!allDone) trackEvent("program_day_marked_done", {});
     save(); openProgram(id); renderProgramList();
   });
-  wireCalendarCarousel();
   $("#progDetailBody").querySelector(".del-prog").onclick=()=>{
     if(!confirm(`Delete "${p.name}"?`)) return;
     data.programs=data.programs.filter(x=>x.id!==id);
@@ -4836,6 +4835,7 @@ function openProgram(id){
   };
   $("#progListView").classList.add("hidden"); $("#progBuildView").classList.add("hidden"); $("#dayBuildView").classList.add("hidden");
   $("#progDetailView").classList.remove("hidden");
+  wireCalendarCarousel();
 }
 function closeProgram(){
   openProgId=null;
