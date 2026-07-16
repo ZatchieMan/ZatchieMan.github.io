@@ -257,7 +257,7 @@
   .daycard{background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:10px}
   .daycard .dh{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
   .daycard .dname{font-family:"Barlow Condensed",sans-serif;font-weight:600;font-size:17px;letter-spacing:.03em}
-  .daycard .dname.center{display:block;text-align:center;font-size:21px;text-transform:uppercase;margin-bottom:10px}
+  .daycard .dname.center{display:block;text-align:center;font-size:18px;text-transform:uppercase;margin-bottom:10px}
   .plan-row{display:flex;justify-content:space-between;font-size:14px;padding:5px 0;border-top:1px solid var(--line)}
   .plan-row .t{font-family:"Roboto Mono",monospace;font-size:13px;color:var(--muted)}
   .plan-item{padding-bottom:3px}
@@ -303,6 +303,16 @@
   .nextup.complete{border-color:var(--good)}
   .nextup.complete .k{color:var(--good)}
 
+  .cal-carousel-wrap{margin-bottom:4px}
+  .cal-carousel{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .cal-carousel::-webkit-scrollbar{display:none}
+  .cal-carousel .cal-month{flex:0 0 100%;scroll-snap-align:start;box-sizing:border-box;margin-bottom:0}
+  .cal-nav{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+  .cal-nav button{background:var(--surface-2);border:1px solid var(--line);color:var(--text);border-radius:8px;width:32px;height:32px;font-size:16px;line-height:1;cursor:pointer}
+  .cal-nav button:hover{border-color:var(--accent);color:var(--accent)}
+  .cal-dots{display:flex;gap:6px;justify-content:center;margin-top:10px}
+  .cal-dots span{width:6px;height:6px;border-radius:50%;background:var(--line)}
+  .cal-dots span.on{background:var(--accent)}
   .cal-month{margin-bottom:16px}
   .cal-mtitle{font-family:"Barlow Condensed",sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.06em;font-size:13px;color:var(--muted);margin-bottom:6px}
   .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
@@ -3526,9 +3536,13 @@ function renderDayList(){
     save(); renderDayList(); toast("Day deleted");
   });
 }
+function currentPickKind(){
+  if(data.lastPickKind) return data.lastPickKind;
+  return data.lastProgramId ? "program" : "freestyle"; // legacy data with no lastPickKind field yet
+}
 function startStandaloneDay(id){
   const d=(data.standaloneDays||[]).find(x=>x.id===id); if(!d) return;
-  data.lastProgramId=null; data.lastDayId=id;
+  data.lastPickKind="day"; data.lastProgramId=null; data.lastDayId=id;
   startWorkout();
   const workoutNavBtn = document.querySelector('nav button[data-tab="workout"]');
   if(workoutNavBtn) workoutNavBtn.click();
@@ -3740,7 +3754,7 @@ function renderNextUp(){
   const overdue = info.next.date<todayISO() ? " · overdue" : "";
   $("#nextUpMeta").textContent=`Week ${info.next.week} · ${DOW[new Date(info.next.date+"T00:00:00").getDay()]} ${info.next.date}${overdue}`;
   $("#nextUpStartBtn").onclick=()=>{
-    data.lastProgramId=info.p.id; data.lastDayId=info.next.day.id; save();
+    data.lastPickKind="program"; data.lastProgramId=info.p.id; data.lastDayId=info.next.day.id; save();
     startWorkout();
   };
 }
@@ -3759,18 +3773,27 @@ function openStartChooser(){
 }
 function renderProgramPicker(){
   const pbox=$("#woProgramDD"); if(!pbox) return;
-  const curP=data.lastProgramId||"";
-  const opts=[{id:"",name:"Freestyle — no program"}].concat(data.programs.map(p=>({id:p.id,name:p.name})));
-  pbox.innerHTML=opts.map(o=>`<button class="opt${curP===o.id?" sel":""}" data-pid="${o.id}">${esc(o.name)}</button>`).join("");
+  const kind=currentPickKind();
+  const curKey = kind==="freestyle" ? "f" : kind==="day" ? "d:"+data.lastDayId : "p:"+data.lastProgramId;
+  const opts=[{key:"f",name:"Freestyle — no program"}]
+    .concat(data.programs.map(p=>({key:"p:"+p.id,name:p.name})))
+    .concat((data.standaloneDays||[]).map(d=>({key:"d:"+d.id,name:"Day: "+d.name})));
+  pbox.innerHTML=opts.map(o=>`<button class="opt${curKey===o.key?" sel":""}" data-key="${o.key}">${esc(o.name)}</button>`).join("");
   pbox.querySelectorAll(".opt").forEach(b=>b.onclick=()=>{
-    const id=b.dataset.pid||null; data.lastProgramId=id;
-    const p=id?data.programs.find(x=>x.id===id):null;
-    data.lastDayId=p&&p.days.length?p.days[0].id:null;
+    const key=b.dataset.key;
+    if(key==="f"){ data.lastPickKind="freestyle"; data.lastProgramId=null; data.lastDayId=null; }
+    else if(key.startsWith("p:")){
+      const id=key.slice(2); data.lastPickKind="program"; data.lastProgramId=id;
+      const p=data.programs.find(x=>x.id===id);
+      data.lastDayId=p&&p.days.length?p.days[0].id:null;
+    } else if(key.startsWith("d:")){
+      data.lastPickKind="day"; data.lastProgramId=null; data.lastDayId=key.slice(2);
+    }
     save(); renderProgramPicker();
   });
-  const p=data.programs.find(x=>x.id===data.lastProgramId);
+  const p = currentPickKind()==="program" ? data.programs.find(x=>x.id===data.lastProgramId) : null;
   const wrap=$("#woDayWrap"), dbox=$("#woDayDD");
-  if(!p||!p.days.length){ wrap.classList.add("hidden"); dbox.innerHTML=""; if($("#woOverviewLink")) $("#woOverviewLink").style.display=data.lastProgramId?"":"none"; renderWoPreview(); return; }
+  if(!p||!p.days.length){ wrap.classList.add("hidden"); dbox.innerHTML=""; if($("#woOverviewLink")) $("#woOverviewLink").style.display=(currentPickKind()==="program"&&data.lastProgramId)?"":"none"; renderWoPreview(); return; }
   if(!p.days.some(d=>d.id===data.lastDayId)) data.lastDayId=p.days[0].id;
   dbox.innerHTML=p.days.map(d=>`<button class="opt${data.lastDayId===d.id?" sel":""}" data-did="${d.id}">${esc(d.name)}</button>`).join("");
   dbox.querySelectorAll(".opt").forEach(b=>b.onclick=()=>{ data.lastDayId=b.dataset.did; save(); renderProgramPicker(); });
@@ -3780,16 +3803,20 @@ function renderProgramPicker(){
 }
 function renderWoPreview(){
   const box=$("#woPreview"); if(!box) return;
-  const p=data.programs.find(x=>x.id===data.lastProgramId);
-  const d=p?p.days.find(x=>x.id===data.lastDayId):null;
-  if(!p||!d){ box.innerHTML=""; return; }
+  const kind=currentPickKind();
+  let d=null;
+  if(kind==="program"){ const p=data.programs.find(x=>x.id===data.lastProgramId); d=p?p.days.find(x=>x.id===data.lastDayId):null; }
+  else if(kind==="day"){ d=(data.standaloneDays||[]).find(x=>x.id===data.lastDayId)||null; }
+  if(!d){ box.innerHTML=""; return; }
   box.innerHTML=`<div class="day-sub" style="margin-top:14px">Preview — last time you did this day</div><div class="daycard" style="margin-top:6px">${dayPlanHTML(d)}</div>`;
 }
 
 function startWorkout(){
-  const p=data.lastProgramId?data.programs.find(x=>x.id===data.lastProgramId):null;
-  let day = p ? p.days.find(d=>d.id===data.lastDayId) : null;
-  if(!p && data.lastDayId) day = (data.standaloneDays||[]).find(d=>d.id===data.lastDayId) || null;
+  const kind=currentPickKind();
+  const p = kind==="program" && data.lastProgramId ? data.programs.find(x=>x.id===data.lastProgramId) : null;
+  let day = null;
+  if(kind==="program" && p) day = p.days.find(d=>d.id===data.lastDayId) || null;
+  else if(kind==="day" && data.lastDayId) day = (data.standaloneDays||[]).find(d=>d.id===data.lastDayId) || null;
   data.lastProgramId = p?p.id:null; data.lastDayId = day?day.id:null;
   active={ startedAt:Date.now(), programId:p?p.id:null, dayId:day?day.id:null,
     programName:p?p.name:null, dayName:day?day.name:null,
@@ -4614,9 +4641,10 @@ function calendarHTML(p){
   sched.forEach(e=>{ (byDate[e.date] ||= []).push(e); });
   const today=todayISO();
   const first=sched[0].date, last=sched[sched.length-1].date;
-  let out="";
+  const months=[];
   let cursor=first.slice(0,7)+"-01";
   const lastMonth=last.slice(0,7);
+  let todayIdx=0;
   while(cursor.slice(0,7)<=lastMonth){
     const [y,m]=cursor.split("-").map(Number);
     const monthDate=new Date(y,m-1,1);
@@ -4640,15 +4668,42 @@ function calendarHTML(p){
       const title=entries.map(e=>esc(e.day.name)).join(", ");
       cells+=`<div class="${cls}"${entries.length?` data-date="${dateStr}"`:""}${title?` title="${title}"`:""}>${dnum}${mark}</div>`;
     }
-    out+=`<div class="cal-month"><div class="cal-mtitle">${monthName}</div><div class="cal-grid">${DOW.map(d=>`<div class="cal-dow">${d[0]}</div>`).join("")}${cells}</div></div>`;
+    if(cursor.slice(0,7)===today.slice(0,7)) todayIdx=months.length;
+    months.push(`<div class="cal-month"><div class="cal-mtitle">${monthName}</div><div class="cal-grid">${DOW.map(d=>`<div class="cal-dow">${d[0]}</div>`).join("")}${cells}</div></div>`);
     cursor = m===12 ? `${y+1}-01-01` : `${y}-${String(m+1).padStart(2,"0")}-01`;
   }
-  out += `<div class="cal-legend">
+  const nav = months.length>1 ? `<div class="cal-nav"><button class="cal-prev" aria-label="Previous month">‹</button><button class="cal-next" aria-label="Next month">›</button></div>` : "";
+  const dots = months.length>1 ? `<div class="cal-dots">${months.map((_,i)=>`<span class="${i===todayIdx?"on":""}"></span>`).join("")}</div>` : "";
+  return `<div class="cal-carousel-wrap" data-today-idx="${todayIdx}">
+    ${nav}
+    <div class="cal-carousel">${months.join("")}</div>
+    ${dots}
+  </div>
+  <div class="cal-legend">
     <span><i style="background:var(--good)"></i>Done</span>
     <span><i style="background:var(--text)"></i>Upcoming</span>
     <span><i style="background:var(--danger)"></i>Missed</span>
   </div>`;
-  return out;
+}
+function wireCalendarCarousel(){
+  const wrap=$("#progDetailBody .cal-carousel-wrap"); if(!wrap) return;
+  const car=wrap.querySelector(".cal-carousel"); if(!car) return;
+  const dots=wrap.querySelectorAll(".cal-dots span");
+  const n=car.children.length;
+  function scrollToIdx(i){ i=Math.max(0,Math.min(n-1,i)); car.scrollTo({left:i*car.clientWidth, behavior:"smooth"}); }
+  const todayIdx=+wrap.dataset.todayIdx||0;
+  if(todayIdx>0) car.scrollLeft = todayIdx*car.clientWidth;
+  const prev=wrap.querySelector(".cal-prev"), next=wrap.querySelector(".cal-next");
+  if(prev) prev.onclick=()=>scrollToIdx(Math.round(car.scrollLeft/car.clientWidth)-1);
+  if(next) next.onclick=()=>scrollToIdx(Math.round(car.scrollLeft/car.clientWidth)+1);
+  let scrollTimer=null;
+  car.onscroll=()=>{
+    clearTimeout(scrollTimer);
+    scrollTimer=setTimeout(()=>{
+      const idx=Math.round(car.scrollLeft/car.clientWidth);
+      dots.forEach((d,i)=>d.classList.toggle("on", i===idx));
+    }, 80);
+  };
 }
 function renderProgramList(){
   const box=$("#programList");
@@ -4773,6 +4828,7 @@ function openProgram(id){
     if(!allDone) trackEvent("program_day_marked_done", {});
     save(); openProgram(id); renderProgramList();
   });
+  wireCalendarCarousel();
   $("#progDetailBody").querySelector(".del-prog").onclick=()=>{
     if(!confirm(`Delete "${p.name}"?`)) return;
     data.programs=data.programs.filter(x=>x.id!==id);
