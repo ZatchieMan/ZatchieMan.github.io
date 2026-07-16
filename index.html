@@ -132,6 +132,11 @@
   .linechart{width:100%;height:auto;display:block;margin-top:8px;background:var(--surface-2);border:1px solid var(--line);border-radius:8px}
   .lvl-wrap{display:flex;align-items:center;gap:18px}
   .lvl-ring{flex:0 0 auto}
+  @keyframes lvlGlow{
+    0%,100%{ filter:drop-shadow(0 0 3px rgba(245,179,1,.5)) drop-shadow(0 0 1px rgba(255,140,0,.7)); }
+    50%{ filter:drop-shadow(0 0 13px rgba(245,179,1,.95)) drop-shadow(0 0 5px rgba(255,90,0,.9)); }
+  }
+  .lvl-ring.top1{animation:lvlGlow 1.8s ease-in-out infinite}
   .lvl-info{flex:1;min-width:0}
   .lvl-total{font-family:"Roboto Mono",monospace;font-weight:700;font-size:20px;color:var(--text)}
   .lvl-total small{font-size:11px;color:var(--muted);font-weight:500}
@@ -3107,7 +3112,7 @@ async function signOutUser(){
   sbUser=null; curUid=null;
   store.del(KEY); store.del(AKEY);                        // wipe cache so the next account can't inherit it
   data = freshData(); data._owner=null; active=null;
-  friendsCache=[]; reqCache=[]; inboxCache=[]; myProfile=null; renderFriends(); renderInbox(); hideUsernameGate();
+  friendsCache=[]; reqCache=[]; inboxCache=[]; myProfile=null; isLeaderboardTop=false; renderFriends(); renderInbox(); hideUsernameGate();
   showAuthGate();
 }
 function schedulePush(){
@@ -3159,6 +3164,7 @@ async function onSignedIn(){
   renderProfile();
   maybeShowUsernameGate();
   checkUpgradeRedirect();
+  refreshLeaderboardTopStatus();
 }
 async function upsertMyProfile(name){
   if(!socialOn()) return;
@@ -3308,6 +3314,19 @@ async function refreshSocial(){
   renderFriends(); renderInbox();
 }
 function socWho(o){ return (o && o.display_name && o.display_name.trim()) ? o.display_name : ((o && o.email) || "friend"); }
+let isLeaderboardTop=false;
+function applyLeaderboardTopStatus(rows){
+  const top = rows.length>0 && !!rows[0].is_me;
+  if(top!==isLeaderboardTop){ isLeaderboardTop=top; renderLevel(); }
+}
+async function refreshLeaderboardTopStatus(){
+  if(!socialOn()){ if(isLeaderboardTop){ isLeaderboardTop=false; renderLevel(); } return; }
+  try{
+    const { data:res, error } = await sb.rpc("list_leaderboard");
+    if(error) throw error;
+    applyLeaderboardTopStatus(res||[]);
+  }catch(e){ console.warn("leaderboard top check failed", e); }
+}
 async function openLeaderboard(){
   if(!socialOn()){ toast("Sign in to see the leaderboard"); return; }
   openModal('<h2 style="margin-top:0">Leaderboard</h2><div id="lbBody"><div class="empty">Loading…</div></div>');
@@ -3316,6 +3335,7 @@ async function openLeaderboard(){
     const { data:res, error } = await sb.rpc("list_leaderboard");
     if(error) throw error;
     rows = res||[];
+    applyLeaderboardTopStatus(rows);
   }catch(e){
     console.warn("leaderboard failed", e);
     $("#lbBody").innerHTML='<div class="empty">Couldn\'t load the leaderboard.</div>';
@@ -3724,7 +3744,7 @@ function renderLevel(){
   const box=$("#levelBox"); if(!box) return;
   const li=levelInfo();
   const size=108, c=size/2, R=44, CIRC=2*Math.PI*R, off=CIRC*(1-li.pct/100);
-  const ring=`<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" class="lvl-ring">
+  const ring=`<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" class="lvl-ring${isLeaderboardTop?" top1":""}">
     <circle cx="${c}" cy="${c}" r="${R}" fill="none" stroke="#262b32" stroke-width="9"/>
     <circle cx="${c}" cy="${c}" r="${R}" fill="none" stroke="#f5b301" stroke-width="9" stroke-linecap="round"
       stroke-dasharray="${CIRC.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}" transform="rotate(-90 ${c} ${c})"/>
@@ -4106,7 +4126,7 @@ function finishWorkout(){
   updateReminderProfile();
   clearRest(); save();
   const newLvl=levelInfo().level;
-  upsertMyProfile();
+  upsertMyProfile().then(refreshLeaderboardTopStatus);
   active=null; saveActive(); showStart(); refreshAll();
   if(editing){ toast("Workout updated ✓"); }
   else { showWorkoutSummary(prevLvl, newLvl, st); }
