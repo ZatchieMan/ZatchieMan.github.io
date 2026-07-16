@@ -3530,6 +3530,8 @@ function startStandaloneDay(id){
   const d=(data.standaloneDays||[]).find(x=>x.id===id); if(!d) return;
   data.lastProgramId=null; data.lastDayId=id;
   startWorkout();
+  const workoutNavBtn = document.querySelector('nav button[data-tab="workout"]');
+  if(workoutNavBtn) workoutNavBtn.click();
 }
 function startDayBuild(existingId){
   const d = existingId ? (data.standaloneDays||[]).find(x=>x.id===existingId) : null;
