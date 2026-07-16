@@ -257,6 +257,7 @@
   .daycard{background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:10px}
   .daycard .dh{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
   .daycard .dname{font-family:"Barlow Condensed",sans-serif;font-weight:600;font-size:17px;letter-spacing:.03em}
+  .daycard .dname.center{display:block;text-align:center;font-size:21px;text-transform:uppercase;margin-bottom:10px}
   .plan-row{display:flex;justify-content:space-between;font-size:14px;padding:5px 0;border-top:1px solid var(--line)}
   .plan-row .t{font-family:"Roboto Mono",monospace;font-size:13px;color:var(--muted)}
   .plan-item{padding-bottom:3px}
@@ -414,6 +415,28 @@
         <div id="programList"></div>
         <button class="btn ghost" id="importSharedBtn" style="width:100%;margin-top:4px">↓ Import a shared program</button>
         <button class="btn ghost" id="newProgBtn" style="width:100%;margin-top:8px">+ New program</button>
+      </div>
+      <div class="card">
+        <h2>Your days</h2>
+        <div class="day-sub" style="margin-bottom:8px">One-off day workouts you can start anytime, outside of any program.</div>
+        <div id="dayList"></div>
+        <button class="btn ghost" id="newDayBtn" style="width:100%;margin-top:8px">+ New day</button>
+      </div>
+    </div>
+    <div id="dayBuildView" class="hidden">
+      <span class="back" id="dayBuildBack">← Cancel</span>
+      <div class="card">
+        <h2 id="dayBuildTitle">New day</h2>
+        <label>Day name</label>
+        <input id="dName" placeholder="e.g. Upper Body">
+        <div id="dItems" style="margin-top:14px"></div>
+        <div class="item-add">
+          <input list="exNames" class="it-name" id="dItName" placeholder="Exercise">
+          <input class="it-sets num-in" id="dItSets" type="number" inputmode="numeric" placeholder="Sets">
+          <input class="it-reps num-in" id="dItReps" type="number" inputmode="numeric" placeholder="Reps">
+          <button class="btn ghost" id="dAddItem">+</button>
+        </div>
+        <button class="btn" id="dSave" style="width:100%;margin-top:14px">Save day</button>
       </div>
     </div>
     <div id="progBuildView" class="hidden">
@@ -2987,11 +3010,11 @@ async function authInit(){
     });
   }catch(e){ console.warn("auth init failed", e); hideAuthGate(); }
 }
-function freshData(){ return { exercises:[], logs:[], programs:[], prs:{}, profile:{}, _owner:(sbUser?sbUser.id:null), _updatedAt:Date.now() }; }
+function freshData(){ return { exercises:[], logs:[], programs:[], standaloneDays:[], prs:{}, profile:{}, _owner:(sbUser?sbUser.id:null), _updatedAt:Date.now() }; }
 function adoptData(obj){
   const sameOwner = data && data._owner === (sbUser ? sbUser.id : null);
   data = obj || {};
-  data.exercises ||= []; data.logs ||= []; data.programs ||= []; data.prs ||= {}; data.profile ||= {};
+  data.exercises ||= []; data.logs ||= []; data.programs ||= []; data.standaloneDays ||= []; data.prs ||= {}; data.profile ||= {};
   migrateWeightUnit();
   if(sbUser) data._owner = sbUser.id;
   store.set(KEY, JSON.stringify(data));                  // persist without pushing
@@ -3409,7 +3432,7 @@ async function sendShareToFriend(programId){
 function load(){
   const raw = store.get(KEY);
   if(raw){ try{ data = JSON.parse(raw); }catch(e){} }
-  data.exercises ||= []; data.logs ||= []; data.programs ||= []; data.prs ||= {}; data.profile ||= {};
+  data.exercises ||= []; data.logs ||= []; data.programs ||= []; data.standaloneDays ||= []; data.prs ||= {}; data.profile ||= {};
 }
 function save(){ data._updatedAt = Date.now(); store.set(KEY, JSON.stringify(data)); schedulePush(); }
 function migrateWeightUnit(){
@@ -3479,7 +3502,63 @@ function dayPlanHTML(d){
     }).join("");
     return run.length>1 ? `<div class="ss-group"><div class="ss-label">⛓ Superset</div>${rows}</div>` : rows;
   }).join("") : `<div class="empty" style="padding:4px 0">No exercises.</div>`;
-  return `<div class="dname" style="margin-bottom:8px">${esc(d.name)}</div>${body}`;
+  return `<div class="dname center">${esc(d.name)}</div>${body}`;
+}
+
+/* ---------- standalone days (day workouts that live outside any program) ---------- */
+let dayDraft=null;
+function renderDayList(){
+  const box=$("#dayList"); if(!box) return;
+  const days=data.standaloneDays||[];
+  if(!days.length){ box.innerHTML=`<div class="empty">No standalone days yet. Add one below for a quick workout template you can start anytime.</div>`; return; }
+  box.innerHTML=days.map(d=>`<div class="daycard">${dayPlanHTML(d)}
+    <div style="display:flex;gap:16px;justify-content:center;margin-top:10px;flex-wrap:wrap">
+      <button class="link start-day" data-id="${d.id}" style="color:var(--accent)">Start</button>
+      <button class="link edit-day" data-id="${d.id}">Edit</button>
+      <button class="link del-day" data-id="${d.id}" style="color:var(--danger)">Delete</button>
+    </div></div>`).join("");
+  box.querySelectorAll(".start-day").forEach(b=>b.onclick=()=>startStandaloneDay(b.dataset.id));
+  box.querySelectorAll(".edit-day").forEach(b=>b.onclick=()=>startDayBuild(b.dataset.id));
+  box.querySelectorAll(".del-day").forEach(b=>b.onclick=()=>{
+    const d=days.find(x=>x.id===b.dataset.id); if(!d) return;
+    if(!confirm(`Delete "${d.name}"?`)) return;
+    data.standaloneDays=data.standaloneDays.filter(x=>x.id!==d.id);
+    save(); renderDayList(); toast("Day deleted");
+  });
+}
+function startStandaloneDay(id){
+  const d=(data.standaloneDays||[]).find(x=>x.id===id); if(!d) return;
+  data.lastProgramId=null; data.lastDayId=id;
+  startWorkout();
+}
+function startDayBuild(existingId){
+  const d = existingId ? (data.standaloneDays||[]).find(x=>x.id===existingId) : null;
+  dayDraft = d
+    ? { _new:false, id:d.id, name:d.name, items:d.items.map(it=>({name:it.name,sets:it.sets,reps:it.reps,ssPrev:!!it.ssPrev})) }
+    : { _new:true, name:"", items:[] };
+  $("#dayBuildTitle").textContent = existingId ? "Edit day" : "New day";
+  $("#dName").value = dayDraft.name;
+  renderDayDraftItems();
+  $("#progListView").classList.add("hidden"); $("#progBuildView").classList.add("hidden"); $("#progDetailView").classList.add("hidden");
+  $("#dayBuildView").classList.remove("hidden");
+}
+function closeDayBuild(){
+  dayDraft=null;
+  $("#dayBuildView").classList.add("hidden");
+  $("#progListView").classList.remove("hidden");
+}
+function renderDayDraftItems(){
+  const box=$("#dItems"); if(!box) return;
+  if(!dayDraft.items.length){ box.innerHTML=`<div class="empty" style="padding:4px 0">No exercises yet.</div>`; return; }
+  const rmBtn=ii=>`<button class="x-btn rm-ditem" data-i="${ii}" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px">×</button>`;
+  const row=(it,ii)=>`<div class="plan-row"><span>${esc(it.name)}</span>
+      <span class="t">${it.sets}×${it.reps}${ii>0?`<button class="ss-toggle${it.ssPrev?" on":""} tg-ditem" data-i="${ii}">⛓ SS</button>`:""} ${rmBtn(ii)}</span></div>`;
+  box.innerHTML = groupItems(dayDraft.items).map(run=>{
+    const rows=run.map(({it,idx})=>row(it,idx)).join("");
+    return run.length>1 ? `<div class="ss-group"><div class="ss-label">⛓ Superset</div>${rows}</div>` : rows;
+  }).join("");
+  box.querySelectorAll(".rm-ditem").forEach(b=>b.onclick=()=>{ dayDraft.items.splice(+b.dataset.i,1); renderDayDraftItems(); });
+  box.querySelectorAll(".tg-ditem").forEach(b=>b.onclick=()=>{ const it=dayDraft.items[+b.dataset.i]; it.ssPrev=!it.ssPrev; renderDayDraftItems(); });
 }
 
 function exportCSV(){
@@ -3707,7 +3786,8 @@ function renderWoPreview(){
 
 function startWorkout(){
   const p=data.lastProgramId?data.programs.find(x=>x.id===data.lastProgramId):null;
-  const day = p ? p.days.find(d=>d.id===data.lastDayId) : null;
+  let day = p ? p.days.find(d=>d.id===data.lastDayId) : null;
+  if(!p && data.lastDayId) day = (data.standaloneDays||[]).find(d=>d.id===data.lastDayId) || null;
   data.lastProgramId = p?p.id:null; data.lastDayId = day?day.id:null;
   active={ startedAt:Date.now(), programId:p?p.id:null, dayId:day?day.id:null,
     programName:p?p.name:null, dayName:day?day.name:null,
@@ -4585,7 +4665,7 @@ function startBuild(){
   $("#buildTitle").textContent="New program";
   $("#bName").value=""; $("#bWeeks").value=8; $("#bDayName").value=""; $("#bStartDate").value=draft.startDate;
   renderDraftDays();
-  $("#progListView").classList.add("hidden"); $("#progDetailView").classList.add("hidden");
+  $("#progListView").classList.add("hidden"); $("#progDetailView").classList.add("hidden"); $("#dayBuildView").classList.add("hidden");
   $("#progBuildView").classList.remove("hidden");
 }
 function editProgram(id){
@@ -4595,7 +4675,7 @@ function editProgram(id){
   $("#buildTitle").textContent="Edit program";
   $("#bName").value=p.name; $("#bWeeks").value=p.weeks; $("#bDayName").value=""; $("#bStartDate").value=draft.startDate;
   renderDraftDays();
-  $("#progListView").classList.add("hidden"); $("#progDetailView").classList.add("hidden");
+  $("#progListView").classList.add("hidden"); $("#progDetailView").classList.add("hidden"); $("#dayBuildView").classList.add("hidden");
   $("#progBuildView").classList.remove("hidden");
 }
 function renderDraftDays(){
@@ -4696,12 +4776,12 @@ function openProgram(id){
     data.programs=data.programs.filter(x=>x.id!==id);
     save(); closeProgram(); renderProgramList(); toast("Program deleted");
   };
-  $("#progListView").classList.add("hidden"); $("#progBuildView").classList.add("hidden");
+  $("#progListView").classList.add("hidden"); $("#progBuildView").classList.add("hidden"); $("#dayBuildView").classList.add("hidden");
   $("#progDetailView").classList.remove("hidden");
 }
 function closeProgram(){
   openProgId=null;
-  $("#progDetailView").classList.add("hidden"); $("#progBuildView").classList.add("hidden");
+  $("#progDetailView").classList.add("hidden"); $("#progBuildView").classList.add("hidden"); $("#dayBuildView").classList.add("hidden");
   $("#progListView").classList.remove("hidden");
 }
 
@@ -4787,6 +4867,33 @@ if($("#weightReminderTime")) $("#weightReminderTime").onchange=()=>{
 
 $("#newProgBtn").onclick=startBuild;
 $("#importSharedBtn").onclick=importPanel;
+if($("#newDayBtn")) $("#newDayBtn").onclick=()=>startDayBuild(null);
+if($("#dayBuildBack")) $("#dayBuildBack").onclick=closeDayBuild;
+if($("#dAddItem")) $("#dAddItem").onclick=()=>{
+  const name=$("#dItName").value.trim();
+  const sets=parseInt($("#dItSets").value,10);
+  const reps=parseInt($("#dItReps").value,10);
+  if(!name){ toast("Exercise name?"); return; }
+  dayDraft.items.push({name,sets:sets||3,reps:reps||5,ssPrev:false});
+  $("#dItName").value=""; $("#dItSets").value=""; $("#dItReps").value="";
+  renderDayDraftItems();
+};
+if($("#dSave")) $("#dSave").onclick=()=>{
+  const name=$("#dName").value.trim();
+  if(!name){ toast("Name your day"); return; }
+  if(!dayDraft.items.length){ toast("Add at least one exercise"); return; }
+  const items=dayDraft.items.map(it=>({name:it.name,sets:it.sets,reps:it.reps,ssPrev:!!it.ssPrev}));
+  if(dayDraft._new){
+    data.standaloneDays ||= [];
+    data.standaloneDays.push({id:uid(),name,items});
+    save(); toast("Day created ✓");
+  } else {
+    const d=(data.standaloneDays||[]).find(x=>x.id===dayDraft.id);
+    if(d){ d.name=name; d.items=items; }
+    save(); toast("Day updated ✓");
+  }
+  closeDayBuild(); renderDayList();
+};
 if($("#addFriendBtn")) $("#addFriendBtn").onclick=addFriend;
 if($("#friendEmail")) $("#friendEmail").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); addFriend(); } });
 $("#modalX").onclick=closeModal;
@@ -4851,7 +4958,7 @@ document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{
   }
 });
 
-function refreshAll(){ fillSelects(); renderRecent(); renderExercises(); renderProgress(); renderPRs(); renderProfile(); renderProgramList(); renderWorkoutStart(); }
+function refreshAll(){ fillSelects(); renderRecent(); renderExercises(); renderProgress(); renderPRs(); renderProfile(); renderProgramList(); renderDayList(); renderWorkoutStart(); }
 
 /* init */
 load();
