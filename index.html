@@ -4114,7 +4114,7 @@ function computeFinishStats(newLogs, durSec){
   });
   return {me, volumeRecord, pace, paceRecord, prs, durSec};
 }
-function showWorkoutSummary(prevLvl, newLvl, st, dayItems){
+function showWorkoutSummary(prevLvl, newLvl, st, dayItems, sid){
   const dur = st.durSec!=null ? fmtDur(st.durSec*1000) : "—";
   const badges=[];
   if(newLvl>prevLvl) badges.push(`⬆ Level up — ${newLvl} · ${esc(levelTitle(newLvl))}`);
@@ -4149,8 +4149,10 @@ function showWorkoutSummary(prevLvl, newLvl, st, dayItems){
       const name=($("#saveDayName").value||"").trim();
       if(!name){ toast("Give the day a name"); return; }
       data.standaloneDays ||= [];
-      data.standaloneDays.push({id:uid(), name, items:dayItems});
-      save(); renderDayList();
+      const newDay={id:uid(), name, items:dayItems};
+      data.standaloneDays.push(newDay);
+      data.logs.forEach(l=>{ if((l.sessionId||l.id)===sid) l.dayId=newDay.id; });
+      save(); renderDayList(); refreshAll();
       trackEvent("day_saved_from_freestyle", {});
       $("#saveDayPrompt").innerHTML = `<div style="flex:1"><div class="name">Saved as "${esc(name)}" ✓</div></div>`;
       $("#saveDayBtn").remove();
@@ -4189,7 +4191,7 @@ function finishWorkout(){
   upsertMyProfile().then(refreshWeeklyChampionStatus);
   active=null; saveActive(); showStart(); refreshAll();
   if(editing){ toast("Workout updated ✓"); }
-  else { showWorkoutSummary(prevLvl, newLvl, st, wasFreestyle?dayItems:null); }
+  else { showWorkoutSummary(prevLvl, newLvl, st, wasFreestyle?dayItems:null, sid); }
 }
 function deleteSession(sid){
   if(!confirm("Delete this workout? This can't be undone.")) return;
