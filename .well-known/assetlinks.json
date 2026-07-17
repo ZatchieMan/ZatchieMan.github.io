@@ -3,6 +3,6 @@
       "target": {
         "namespace": "android_app",
         "package_name": "com.zatchie.ironlog",
-        "sha256_cert_fingerprints": ["FE:3F:39:39:B6:CF:13:4E:D9:16:43:A8:FD:8E:03:03:40:0B:11:23:16:50:B7:5E:2E:12:85:4E:24:2E:F1:F5"]
+        "sha256_cert_fingerprints": ["E9:C1:27:04:8F:CB:EA:22:01:1B:AE:4B:C0:E4:0E:08:4A:A6:6D:3C:DB:CA:63:4A:7D:27:16:C7:86:F4:0E:13"]
       }
     }]
