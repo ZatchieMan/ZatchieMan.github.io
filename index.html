@@ -4114,13 +4114,22 @@ function computeFinishStats(newLogs, durSec){
   });
   return {me, volumeRecord, pace, paceRecord, prs, durSec};
 }
-function showWorkoutSummary(prevLvl, newLvl, st){
+function showWorkoutSummary(prevLvl, newLvl, st, dayItems){
   const dur = st.durSec!=null ? fmtDur(st.durSec*1000) : "—";
   const badges=[];
   if(newLvl>prevLvl) badges.push(`⬆ Level up — ${newLvl} · ${esc(levelTitle(newLvl))}`);
   if(st.volumeRecord) badges.push(`🏆 New volume record`);
   if(st.paceRecord) badges.push(`⚡ New speed record`);
   st.prs.forEach(p=>badges.push(`🔥 New PR — ${esc(p.name)}: ${p.w} ${p.u}`));
+  const saveDayHTML = (dayItems && dayItems.length) ? `
+    <div class="ex-menu-row" style="margin-top:16px;align-items:flex-start" id="saveDayPrompt">
+      <div style="flex:1">
+        <div class="name">Save as a day</div>
+        <div class="meta">Reuse this workout as a template next time.</div>
+        <input id="saveDayName" class="num-in" style="width:100%;margin-top:8px" placeholder="Day name" maxlength="40">
+      </div>
+    </div>
+    <button class="btn ghost" id="saveDayBtn" style="width:100%;margin-top:10px">Save as day</button>` : "";
   openModal(`
     <h2 style="margin-top:0">Workout complete</h2>
     <div class="sum-grid">
@@ -4132,8 +4141,21 @@ function showWorkoutSummary(prevLvl, newLvl, st){
       <div class="sum"><div class="k">Pace</div><div class="v">${st.pace?Math.round(fromKg(st.pace)):"—"}<small> ${weightUnit()}/min</small></div></div>
     </div>
     ${badges.length?`<div class="sum-badges">${badges.map(b=>`<div class="sum-badge">${b}</div>`).join("")}</div>`:""}
+    ${saveDayHTML}
     <button class="btn" id="sumDone" style="width:100%;margin-top:16px">Done</button>`);
   $("#sumDone").onclick=closeModal;
+  if(dayItems && dayItems.length){
+    $("#saveDayBtn").onclick=()=>{
+      const name=($("#saveDayName").value||"").trim();
+      if(!name){ toast("Give the day a name"); return; }
+      data.standaloneDays ||= [];
+      data.standaloneDays.push({id:uid(), name, items:dayItems});
+      save(); renderDayList();
+      trackEvent("day_saved_from_freestyle", {});
+      $("#saveDayPrompt").innerHTML = `<div style="flex:1"><div class="name">Saved as "${esc(name)}" ✓</div></div>`;
+      $("#saveDayBtn").remove();
+    };
+  }
 }
 function finishWorkout(){
   const editing=active.editing;
@@ -4141,7 +4163,9 @@ function finishWorkout(){
   const sid=editing||uid();
   const startedAt=active.startedAt||Date.now();
   const durSec = (!editing && active.startedAt) ? Math.max(0, Math.round((Date.now()-active.startedAt)/1000)) : null;
+  const wasFreestyle = !editing && !active.programId && !active.dayId;
   const newLogs=[];
+  const dayItems=[];
   active.exercises.forEach(ex=>{
     const plan = ex.plan==null ? Infinity : ex.plan;
     const bw=isBW(ex.exerciseId);
@@ -4151,6 +4175,7 @@ function finishWorkout(){
     if(sets.length){
       newLogs.push({ id:uid(), exerciseId:ex.exerciseId, date:active.date, sets,
         bonus:!!ex.bonus, sessionId:sid, programId:active.programId||null, dayId:active.dayId||null, dur:durSec, startedAt });
+      if(wasFreestyle) dayItems.push({ name:ex.name||exName(ex.exerciseId), sets:sets.length, reps:sets[0].reps, ssPrev:!!ex.ssPrev });
     }
   });
   if(!newLogs.length){ toast("Log at least one set first"); return; }
@@ -4164,7 +4189,7 @@ function finishWorkout(){
   upsertMyProfile().then(refreshWeeklyChampionStatus);
   active=null; saveActive(); showStart(); refreshAll();
   if(editing){ toast("Workout updated ✓"); }
-  else { showWorkoutSummary(prevLvl, newLvl, st); }
+  else { showWorkoutSummary(prevLvl, newLvl, st, wasFreestyle?dayItems:null); }
 }
 function deleteSession(sid){
   if(!confirm("Delete this workout? This can't be undone.")) return;
