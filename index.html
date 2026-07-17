@@ -550,21 +550,9 @@
       </div>
       <div class="card">
         <h2>Units</h2>
-        <div class="row">
-          <div>
-            <label>Weight</label>
-            <div class="wd-picker">
-              <button class="wd-btn" id="unitKgBtn" data-unit="kg">KG</button>
-              <button class="wd-btn" id="unitLbBtn" data-unit="lb">LB</button>
-            </div>
-          </div>
-          <div>
-            <label>Height</label>
-            <div class="wd-picker">
-              <button class="wd-btn" id="unitCmBtn" data-unit="cm">CM</button>
-              <button class="wd-btn" id="unitFtBtn" data-unit="ft">FT/IN</button>
-            </div>
-          </div>
+        <div class="wd-picker">
+          <button class="wd-btn" id="unitMetricBtn" data-system="metric">Metric (kg/cm)</button>
+          <button class="wd-btn" id="unitImperialBtn" data-system="imperial">Imperial (lb/ft)</button>
         </div>
       </div>
       <div class="card" id="reminderCard" style="display:none">
@@ -572,6 +560,7 @@
           <div style="flex:1"><div class="name">Workout reminders</div><div class="meta" id="reminderStatus">Log a few more workouts to unlock this.</div></div>
           <button class="bw-toggle" id="reminderToggle">Off</button>
         </div>
+        <div class="wd-picker" id="reminderDaysPicker"></div>
       </div>
       <div class="card" id="weightReminderCard" style="display:none">
         <div class="ex-menu-row">
@@ -3165,6 +3154,7 @@ async function onSignedIn(){
   maybeShowUsernameGate();
   checkUpgradeRedirect();
   refreshWeeklyChampionStatus();
+  ensurePushSubscriptionSynced();
 }
 async function upsertMyProfile(name){
   if(!socialOn()) return;
@@ -4272,7 +4262,6 @@ function renderProfile(){
   renderReminderCard();
   renderWeightReminderCard();
   renderUnitToggle();
-  renderHeightUnitToggle();
   renderPremiumCard();
   if($("#deleteAccountBtn")) $("#deleteAccountBtn").style.display = socialOn() ? "" : "none";
 }
@@ -4291,17 +4280,12 @@ function renderPremiumCard(){
     $("#upgradeBtn").onclick=()=>openPaywall("Upgrade to Iron Log Premium.");
   }
 }
+function unitSystem(){ return weightUnit()==="lb" ? "imperial" : "metric"; }
 function renderUnitToggle(){
-  const kgBtn=$("#unitKgBtn"), lbBtn=$("#unitLbBtn"); if(!kgBtn||!lbBtn) return;
-  const u=weightUnit();
-  kgBtn.className="wd-btn"+(u==="kg"?" on":"");
-  lbBtn.className="wd-btn"+(u==="lb"?" on":"");
-}
-function renderHeightUnitToggle(){
-  const cmBtn=$("#unitCmBtn"), ftBtn=$("#unitFtBtn"); if(!cmBtn||!ftBtn) return;
-  const u=heightUnit();
-  cmBtn.className="wd-btn"+(u==="cm"?" on":"");
-  ftBtn.className="wd-btn"+(u==="ft"?" on":"");
+  const mBtn=$("#unitMetricBtn"), iBtn=$("#unitImperialBtn"); if(!mBtn||!iBtn) return;
+  const sys=unitSystem();
+  mBtn.className="wd-btn"+(sys==="metric"?" on":"");
+  iBtn.className="wd-btn"+(sys==="imperial"?" on":"");
 }
 
 /* ---------- workout reminders (web push) ---------- */
@@ -4348,18 +4332,50 @@ function renderReminderCard(){
     const h12=((r.usualHour+11)%12)+1, ampm=r.usualHour<12?"AM":"PM";
     status.textContent=`Usual workout time: ${h12}:${String(r.usualMinute).padStart(2,"0")} ${ampm} · based on ${r.sessionsUsed} session${r.sessionsUsed===1?"":"s"}`;
   }
+  const wdBox=$("#reminderDaysPicker");
+  if(wdBox){
+    const wd=r.weekdays || [0,1,2,3,4,5,6];
+    wdBox.innerHTML=DOW.map((n,wi)=>`<button class="wd-btn${wd.includes(wi)?" on":""}" data-wd="${wi}">${n}</button>`).join("");
+    wdBox.querySelectorAll(".wd-btn").forEach(b=>b.onclick=()=>{
+      r.weekdays ||= [0,1,2,3,4,5,6];
+      const wi=+b.dataset.wd, i=r.weekdays.indexOf(wi);
+      if(i>-1) r.weekdays.splice(i,1); else r.weekdays.push(wi);
+      save(); renderReminderCard();
+    });
+  }
+}
+async function subscribeAndSyncPush(){
+  const reg=await navigator.serviceWorker.ready;
+  let sub=await reg.pushManager.getSubscription();
+  if(!sub){ sub=await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey:urlBase64ToUint8Array(VAPID_PUBLIC_KEY) }); }
+  const j=sub.toJSON();
+  await sb.from("push_subscriptions").upsert({ user_id:sbUser.id, endpoint:j.endpoint, p256dh:j.keys.p256dh, auth:j.keys.auth });
 }
 async function enablePush(){
   try{
     const perm=await Notification.requestPermission();
     if(perm!=="granted"){ toast("Notifications permission denied"); return false; }
-    const reg=await navigator.serviceWorker.ready;
-    let sub=await reg.pushManager.getSubscription();
-    if(!sub){ sub=await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey:urlBase64ToUint8Array(VAPID_PUBLIC_KEY) }); }
-    const j=sub.toJSON();
-    await sb.from("push_subscriptions").upsert({ user_id:sbUser.id, endpoint:j.endpoint, p256dh:j.keys.p256dh, auth:j.keys.auth });
+    await subscribeAndSyncPush();
     return true;
   }catch(e){ console.warn("enable push failed", e); toast("Couldn't enable notifications"); return false; }
+}
+// Re-establishes the device's push subscription if it's missing on the server —
+// covers reinstalls/cleared browser data where the local "enabled" flag survives
+// (it's synced to the cloud) but the actual subscription doesn't, so reminders
+// silently stop arriving with no way for the user to notice.
+async function ensurePushSubscriptionSynced(){
+  if(!socialOn() || !reminderPushSupported()) return;
+  const pf=data.profile||{};
+  const needed = (pf.reminder&&pf.reminder.enabled) || (pf.weightReminder&&pf.weightReminder.enabled);
+  if(!needed) return;
+  if(Notification.permission!=="granted"){
+    let changed=false;
+    if(pf.reminder&&pf.reminder.enabled){ pf.reminder.enabled=false; changed=true; }
+    if(pf.weightReminder&&pf.weightReminder.enabled){ pf.weightReminder.enabled=false; changed=true; }
+    if(changed){ save(); renderReminderCard(); renderWeightReminderCard(); }
+    return;
+  }
+  try{ await subscribeAndSyncPush(); }catch(e){ console.warn("push resync failed", e); }
 }
 async function maybeRemovePush(){
   const pf=data.profile||{};
@@ -4996,14 +5012,12 @@ $("#pfSave").onclick=()=>{
 };
 $("#progExercise").onchange=renderProgress;
 if($("#openSettingsBtn")) $("#openSettingsBtn").onclick=()=>{ $("#pfMainView").classList.add("hidden"); $("#pfSettingsView").classList.remove("hidden"); };
-if($("#unitKgBtn")&&$("#unitLbBtn")) [$("#unitKgBtn"),$("#unitLbBtn")].forEach(b=>b.onclick=()=>{
-  data.profile=data.profile||{}; data.profile.weightUnit=b.dataset.unit;
-  trackEvent("unit_changed", { kind:"weight", value:b.dataset.unit });
-  save(); refreshAll();
-});
-if($("#unitCmBtn")&&$("#unitFtBtn")) [$("#unitCmBtn"),$("#unitFtBtn")].forEach(b=>b.onclick=()=>{
-  data.profile=data.profile||{}; data.profile.heightUnit=b.dataset.unit;
-  trackEvent("unit_changed", { kind:"height", value:b.dataset.unit });
+if($("#unitMetricBtn")&&$("#unitImperialBtn")) [$("#unitMetricBtn"),$("#unitImperialBtn")].forEach(b=>b.onclick=()=>{
+  data.profile=data.profile||{};
+  const sys=b.dataset.system;
+  data.profile.weightUnit = sys==="imperial" ? "lb" : "kg";
+  data.profile.heightUnit = sys==="imperial" ? "ft" : "cm";
+  trackEvent("unit_changed", { kind:"system", value:sys });
   save(); refreshAll();
 });
 if($("#settingsBack")) $("#settingsBack").onclick=()=>{ $("#pfSettingsView").classList.add("hidden"); $("#pfMainView").classList.remove("hidden"); };

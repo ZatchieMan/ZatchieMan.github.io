@@ -21,10 +21,12 @@ const VAPID_SUBJECT = Deno.env.get("VAPID_SUBJECT")!;
 
 webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
+const WEEKDAY_INDEX: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+
 function nowPartsInTz(tz: string) {
   const fmt = new Intl.DateTimeFormat("en-US", {
     timeZone: tz, hour12: false, hour: "2-digit", minute: "2-digit",
-    year: "numeric", month: "2-digit", day: "2-digit",
+    year: "numeric", month: "2-digit", day: "2-digit", weekday: "short",
   });
   const parts: Record<string, string> = {};
   for (const p of fmt.formatToParts(new Date())) parts[p.type] = p.value;
@@ -32,6 +34,7 @@ function nowPartsInTz(tz: string) {
   return {
     minutesOfDay: hour * 60 + parseInt(parts.minute, 10),
     dateStr: `${parts.year}-${parts.month}-${parts.day}`,
+    weekday: WEEKDAY_INDEX[parts.weekday],
   };
 }
 
@@ -93,8 +96,13 @@ Deno.serve(async () => {
     const workout = profile.reminder;
     const weight = profile.weightReminder;
 
+    const activeWeekdays: number[] = Array.isArray(workout?.weekdays) ? workout.weekdays : [0, 1, 2, 3, 4, 5, 6];
     const workoutDue = !!workout?.enabled && workout.usualHour != null && workout.usualMinute != null && workout.timezone
-      ? isDue(nowPartsInTz(workout.timezone).minutesOfDay, (((workout.usualHour * 60 + workout.usualMinute) - 60) % 1440 + 1440) % 1440)
+      ? (() => {
+          const tzNow = nowPartsInTz(workout.timezone);
+          return activeWeekdays.includes(tzNow.weekday)
+            && isDue(tzNow.minutesOfDay, (((workout.usualHour * 60 + workout.usualMinute) - 60) % 1440 + 1440) % 1440);
+        })()
       : false;
 
     let weightDue = false;
