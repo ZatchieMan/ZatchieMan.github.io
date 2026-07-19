@@ -351,6 +351,10 @@
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
   .foot{color:var(--muted);font-size:11px;text-align:center;margin-top:24px;line-height:1.6}
   .foot button{color:var(--danger)}
+  .pf-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
+  .pf-row:last-child{border-bottom:none}
+  .pf-row .pf-label{color:var(--muted);font-size:13px;text-transform:uppercase;letter-spacing:.04em}
+  .pf-row .pf-value{font-weight:600;font-size:15px}
   .hidden{display:none}
   @media(max-width:480px){.stat-grid{grid-template-columns:1fr 1fr}.item-add{grid-template-columns:1fr 1fr;gap:6px}}
   .soc-label{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin:10px 0 6px}
@@ -501,24 +505,34 @@
     <div id="pfMainView">
       <div class="card">
         <h2>Profile</h2>
-        <div id="pfUsernameRow" style="display:none;margin-bottom:12px">
-          <label>Username</label>
-          <input id="pfUsername" placeholder="Pick a username" maxlength="20" autocomplete="off">
+        <div id="pfView">
+          <div class="pf-row hidden" id="pfViewUsernameRow"><span class="pf-label">Username</span><span class="pf-value" id="pfViewUsername">—</span></div>
+          <div class="pf-row"><span class="pf-label">Bodyweight</span><span class="pf-value" id="pfViewWeight">—</span></div>
+          <div class="pf-row"><span class="pf-label">Height</span><span class="pf-value" id="pfViewHeight">—</span></div>
+          <div class="pf-row"><span class="pf-label">Target weight</span><span class="pf-value" id="pfViewTarget">—</span></div>
+          <div id="pfExtra" style="color:var(--muted);font-size:13px;margin-top:10px"></div>
+          <div id="pfTargetBar" style="margin-top:12px"></div>
+          <button class="btn ghost" id="pfEditBtn" style="width:100%;margin-top:14px">Edit profile</button>
         </div>
-        <div class="row">
-          <div><label>Bodyweight</label><span class="pr-input" style="display:flex;align-items:center;gap:8px"><input id="pfWeight" class="num-in" type="number" inputmode="decimal" step="0.1" placeholder="—"><span class="pr-unit" id="pfWeightUnit">kg</span></span></div>
-          <div><label>Height</label>
-            <span class="pr-input" id="pfHeightCmWrap" style="display:flex;align-items:center;gap:8px"><input id="pfHeight" class="num-in" type="number" inputmode="numeric" step="1" placeholder="—"><span class="pr-unit">cm</span></span>
-            <span class="pr-input" id="pfHeightFtWrap" style="display:none;align-items:center;gap:6px">
-              <input id="pfHeightFt" class="num-in" type="number" inputmode="numeric" step="1" placeholder="—" style="width:56px"><span class="pr-unit">ft</span>
-              <input id="pfHeightIn" class="num-in" type="number" inputmode="numeric" step="1" placeholder="—" style="width:56px"><span class="pr-unit">in</span>
-            </span>
+        <div id="pfEditView" class="hidden">
+          <div id="pfUsernameRow" style="display:none;margin-bottom:12px">
+            <label>Username</label>
+            <input id="pfUsername" placeholder="Pick a username" maxlength="20" autocomplete="off">
           </div>
+          <div class="row">
+            <div><label>Bodyweight</label><span class="pr-input" style="display:flex;align-items:center;gap:8px"><input id="pfWeight" class="num-in" type="number" inputmode="decimal" step="0.1" placeholder="—"><span class="pr-unit" id="pfWeightUnit">kg</span></span></div>
+            <div><label>Height</label>
+              <span class="pr-input" id="pfHeightCmWrap" style="display:flex;align-items:center;gap:8px"><input id="pfHeight" class="num-in" type="number" inputmode="numeric" step="1" placeholder="—"><span class="pr-unit">cm</span></span>
+              <span class="pr-input" id="pfHeightFtWrap" style="display:none;align-items:center;gap:6px">
+                <input id="pfHeightFt" class="num-in" type="number" inputmode="numeric" step="1" placeholder="—" style="width:56px"><span class="pr-unit">ft</span>
+                <input id="pfHeightIn" class="num-in" type="number" inputmode="numeric" step="1" placeholder="—" style="width:56px"><span class="pr-unit">in</span>
+              </span>
+            </div>
+          </div>
+          <div style="margin-top:12px"><label>Target weight</label><span class="pr-input" style="display:flex;align-items:center;gap:8px"><input id="pfTarget" class="num-in" type="number" inputmode="decimal" step="0.1" placeholder="—"><span class="pr-unit" id="pfTargetUnit">kg</span></span></div>
+          <button class="btn" id="pfSave" style="width:100%;margin-top:14px">Save profile</button>
+          <button class="btn ghost" id="pfEditCancel" style="width:100%;margin-top:8px">Cancel</button>
         </div>
-        <div style="margin-top:12px"><label>Target weight</label><span class="pr-input" style="display:flex;align-items:center;gap:8px"><input id="pfTarget" class="num-in" type="number" inputmode="decimal" step="0.1" placeholder="—"><span class="pr-unit" id="pfTargetUnit">kg</span></span></div>
-        <div id="pfExtra" style="color:var(--muted);font-size:13px;margin-top:10px"></div>
-        <div id="pfTargetBar" style="margin-top:12px"></div>
-        <button class="btn" id="pfSave" style="width:100%;margin-top:14px">Save profile</button>
       </div>
       <div class="card"><h2>Weight history</h2><div id="pfChart"></div></div>
       <div class="card" id="friendsCard" style="display:none">
@@ -4329,6 +4343,16 @@ function renderProfile(){
   const h=+pf.height; // canonical cm — used for BMI below; do not display this raw value
   $("#pfExtra").textContent = (cur>0&&h>0) ? `BMI ${(cur/Math.pow(h/100,2)).toFixed(1)}` : "";
   if($("#pfTargetBar")) $("#pfTargetBar").innerHTML = targetBar();
+  const vUnRow=$("#pfViewUsernameRow");
+  if(vUnRow){
+    vUnRow.classList.toggle("hidden", !socialOn());
+    if($("#pfViewUsername")) $("#pfViewUsername").textContent = (myProfile&&myProfile.display_name) || "—";
+  }
+  if($("#pfViewWeight")) $("#pfViewWeight").textContent = cur>0 ? `${fromKg(cur)} ${weightUnit()}` : "—";
+  if($("#pfViewHeight")) $("#pfViewHeight").textContent = pf.height!=null
+    ? (hu==="cm" ? `${pf.height} cm` : (()=>{ const {ft,inch}=cmToFtIn(pf.height); return `${ft} ft ${inch} in`; })())
+    : "—";
+  if($("#pfViewTarget")) $("#pfViewTarget").textContent = pf.targetWeight!=null ? `${fromKg(pf.targetWeight)} ${weightUnit()}` : "—";
   const chart=$("#pfChart");
   if(chart){
     if(wl.length<2){ chart.innerHTML=`<div class="empty">Save your weight on at least two different days to see a trend.</div>`; }
@@ -5184,7 +5208,10 @@ $("#pfSave").onclick=()=>{
     }
   }
   save(); renderProfile(); renderLevel(); renderProgress(); toast("Profile saved ✓");
+  $("#pfEditView").classList.add("hidden"); $("#pfView").classList.remove("hidden");
 };
+if($("#pfEditBtn")) $("#pfEditBtn").onclick=()=>{ $("#pfView").classList.add("hidden"); $("#pfEditView").classList.remove("hidden"); };
+if($("#pfEditCancel")) $("#pfEditCancel").onclick=()=>{ renderProfile(); $("#pfEditView").classList.add("hidden"); $("#pfView").classList.remove("hidden"); };
 $("#progExercise").onchange=renderProgress;
 if($("#openSettingsBtn")) $("#openSettingsBtn").onclick=()=>{ $("#pfMainView").classList.add("hidden"); $("#pfSettingsView").classList.remove("hidden"); };
 if($("#unitMetricBtn")&&$("#unitImperialBtn")) [$("#unitMetricBtn"),$("#unitImperialBtn")].forEach(b=>b.onclick=()=>{
