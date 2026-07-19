@@ -4183,6 +4183,7 @@ function showWorkoutSummary(prevLvl, newLvl, st, dayItems, sid){
   if(st.volumeRecord) badges.push(`🏆 New volume record`);
   if(st.paceRecord) badges.push(`⚡ New speed record`);
   st.prs.forEach(p=>badges.push(`🔥 New PR — ${esc(p.name)}: ${p.w} ${p.u}`));
+  if(st.streakRenewed) badges.push(`🔥 ${st.streak}-week streak!`);
   const saveDayHTML = (dayItems && dayItems.length) ? `
     <div class="ex-menu-row" style="margin-top:16px;align-items:flex-start" id="saveDayPrompt">
       <div style="flex:1">
@@ -4244,9 +4245,14 @@ function finishWorkout(){
   });
   if(!newLogs.length){ toast("Log at least one set first"); return; }
   if(editing){ data.logs=data.logs.filter(l=>(l.sessionId||l.id)!==editing); }
+  const streakBefore = editing ? 0 : weeklyStreak();
   const st = editing ? null : computeFinishStats(newLogs, durSec);
   data.logs.push(...newLogs);
-  if(!editing) trackEvent("workout_finished", { hasProgram:!!active.programId, exerciseCount:newLogs.length, setCount:newLogs.reduce((s,l)=>s+l.sets.length,0), durationSec:durSec });
+  if(!editing){
+    st.streak = weeklyStreak();
+    st.streakRenewed = st.streak > streakBefore;
+    trackEvent("workout_finished", { hasProgram:!!active.programId, exerciseCount:newLogs.length, setCount:newLogs.reduce((s,l)=>s+l.sets.length,0), durationSec:durSec });
+  }
   updateReminderProfile();
   clearRest(); save();
   const newLvl=levelInfo().level;
