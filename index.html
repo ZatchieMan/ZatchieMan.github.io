@@ -428,7 +428,7 @@
       <div class="card">
         <h2>Your programs</h2>
         <div id="programList"></div>
-        <button class="btn ghost" id="importSharedBtn" style="width:100%;margin-top:4px">↓ Import a shared program</button>
+        <button class="btn ghost" id="importSharedBtn" style="width:100%;margin-top:4px">↓ Import a shared program or day</button>
         <button class="btn ghost" id="newProgBtn" style="width:100%;margin-top:8px">+ New program</button>
       </div>
       <div class="card">
@@ -3101,7 +3101,7 @@ async function signOutUser(){
   sbUser=null; curUid=null;
   store.del(KEY); store.del(AKEY);                        // wipe cache so the next account can't inherit it
   data = freshData(); data._owner=null; active=null;
-  friendsCache=[]; reqCache=[]; inboxCache=[]; myProfile=null; isWeeklyChampion=false; renderFriends(); renderInbox(); hideUsernameGate();
+  friendsCache=[]; reqCache=[]; inboxCache=[]; dayInboxCache=[]; myProfile=null; isWeeklyChampion=false; renderFriends(); renderInbox(); hideUsernameGate();
   showAuthGate();
 }
 function schedulePush(){
@@ -3144,7 +3144,7 @@ function showAuthGate(){ const g=$("#authGate"); if(g) g.classList.remove("hidde
 function hideAuthGate(){ const g=$("#authGate"); if(g) g.classList.add("hidden"); }
 
 /* ================= Friends & program sharing ================= */
-let friendsCache=[], reqCache=[], inboxCache=[], myProfile=null;
+let friendsCache=[], reqCache=[], inboxCache=[], dayInboxCache=[], myProfile=null;
 function socialOn(){ return !!(sb && sbUser); }
 async function onSignedIn(){
   await upsertMyProfile();
@@ -3243,7 +3243,7 @@ function openDeleteAccountModal(){
       store.del(KEY); store.del(AKEY);
       try{ await sb.auth.signOut(); }catch(e){}
       sbUser=null; curUid=null; data=freshData(); data._owner=null; active=null;
-      friendsCache=[]; reqCache=[]; inboxCache=[]; myProfile=null;
+      friendsCache=[]; reqCache=[]; inboxCache=[]; dayInboxCache=[]; myProfile=null;
       refreshAll(); showStart(); showAuthGate();
       toast("Your account has been deleted");
     }catch(e){ $("#deleteAcctStatus").textContent="Something went wrong. Please try again or email us."; btn.disabled=false; }
@@ -3290,16 +3290,18 @@ async function saveUsernameFromGate(){
 }
 async function refreshSocial(){
   const lb=$("#leaderboardBtn"); if(lb) lb.classList.toggle("hidden", !socialOn());
-  if(!socialOn()){ friendsCache=[]; reqCache=[]; inboxCache=[]; renderFriends(); renderInbox(); return; }
+  if(!socialOn()){ friendsCache=[]; reqCache=[]; inboxCache=[]; dayInboxCache=[]; renderFriends(); renderInbox(); return; }
   try{
-    const [f,r,i] = await Promise.all([
+    const [f,r,i,di] = await Promise.all([
       sb.rpc("list_friends"),
       sb.rpc("list_incoming_requests"),
-      sb.rpc("list_inbox")
+      sb.rpc("list_inbox"),
+      sb.rpc("list_day_inbox")
     ]);
-    friendsCache = (f && f.data) ? f.data : [];
-    reqCache     = (r && r.data) ? r.data : [];
-    inboxCache   = (i && i.data) ? i.data : [];
+    friendsCache  = (f && f.data) ? f.data : [];
+    reqCache      = (r && r.data) ? r.data : [];
+    inboxCache    = (i && i.data) ? i.data : [];
+    dayInboxCache = (di && di.data) ? di.data : [];
   }catch(e){ console.warn("refreshSocial failed", e); }
   renderFriends(); renderInbox();
 }
@@ -3388,19 +3390,29 @@ function renderFriends(){
 }
 function renderInbox(){
   const card=$("#inboxCard"); if(!card) return;
-  card.style.display = (socialOn() && inboxCache.length) ? "" : "none";
+  card.style.display = (socialOn() && (inboxCache.length||dayInboxCache.length)) ? "" : "none";
   const box=$("#programInbox"); if(!box) return;
-  box.innerHTML = inboxCache.map(s=>{
+  const progRows = inboxCache.map(s=>{
     let days=0, weeks="?";
     try{ days=(s.program.d||[]).length; weeks=s.program.w||"?"; }catch(_){}
     const meta=weeks+" weeks · "+days+" day"+(days===1?"":"s")+"/week";
     return '<div class="soc-row"><div class="soc-who">'+esc(s.name||"Program")
       +'<div class="soc-sub">from '+esc(socWho(s))+' · '+esc(meta)+'</div></div>'
-      +'<div class="soc-actions"><button class="btn soc-btn i-acc" data-id="'+s.id+'">Add</button>'
-      +'<button class="btn ghost soc-btn i-dis" data-id="'+s.id+'">Dismiss</button></div></div>';
-  }).join("");
-  box.querySelectorAll(".i-acc").forEach(b=>b.onclick=()=>acceptShared(b.dataset.id));
-  box.querySelectorAll(".i-dis").forEach(b=>b.onclick=()=>dismissShared(b.dataset.id));
+      +'<div class="soc-actions"><button class="btn soc-btn i-acc" data-kind="program" data-id="'+s.id+'">Add</button>'
+      +'<button class="btn ghost soc-btn i-dis" data-kind="program" data-id="'+s.id+'">Dismiss</button></div></div>';
+  });
+  const dayRows = dayInboxCache.map(s=>{
+    let n=0;
+    try{ n=(s.day.i||[]).length; }catch(_){}
+    const meta=n+" exercise"+(n===1?"":"s");
+    return '<div class="soc-row"><div class="soc-who">'+esc(s.name||"Day")
+      +'<div class="soc-sub">from '+esc(socWho(s))+' · '+esc(meta)+'</div></div>'
+      +'<div class="soc-actions"><button class="btn soc-btn i-acc" data-kind="day" data-id="'+s.id+'">Add</button>'
+      +'<button class="btn ghost soc-btn i-dis" data-kind="day" data-id="'+s.id+'">Dismiss</button></div></div>';
+  });
+  box.innerHTML = progRows.concat(dayRows).join("");
+  box.querySelectorAll(".i-acc").forEach(b=>b.onclick=()=> b.dataset.kind==="day" ? acceptSharedDay(b.dataset.id) : acceptShared(b.dataset.id));
+  box.querySelectorAll(".i-dis").forEach(b=>b.onclick=()=> b.dataset.kind==="day" ? dismissSharedDay(b.dataset.id) : dismissShared(b.dataset.id));
 }
 async function addFriend(){
   if(!socialOn()){ toast("Sign in to add friends"); return; }
@@ -3426,12 +3438,15 @@ async function declineReq(id){
   catch(e){ console.warn(e); toast("Couldn't decline"); }
 }
 function pickProgramForFriend(friendId){
-  if(!data.programs.length){ toast("You have no programs to send yet"); return; }
-  openModal('<h2 style="margin-top:0">Send a program</h2>'
-    +'<div class="modal-note">Pick which program to send.</div><div id="sendPick">'
-    +data.programs.map(p=>'<button class="btn ghost opt" data-id="'+p.id+'" style="width:100%;margin-top:6px">'+esc(p.name)+'</button>').join("")
-    +'</div>');
-  $("#sendPick").querySelectorAll(".opt").forEach(b=>b.onclick=()=>doSendProgram(friendId, b.dataset.id));
+  const days=data.standaloneDays||[];
+  if(!data.programs.length && !days.length){ toast("You have nothing to send yet"); return; }
+  const progOpts = data.programs.map(p=>'<button class="btn ghost opt" data-kind="program" data-id="'+p.id+'" style="width:100%;margin-top:6px">'+esc(p.name)+'</button>').join("");
+  const dayOpts = days.map(d=>'<button class="btn ghost opt" data-kind="day" data-id="'+d.id+'" style="width:100%;margin-top:6px">'+esc(d.name)+'</button>').join("");
+  openModal('<h2 style="margin-top:0">Send to a friend</h2>'
+    +(data.programs.length ? '<div class="modal-note">Programs</div><div>'+progOpts+'</div>' : "")
+    +(days.length ? '<div class="modal-note" style="margin-top:'+(data.programs.length?'14px':'0')+'">Days</div><div>'+dayOpts+'</div>' : ""));
+  $("#modalBody").querySelectorAll('.opt[data-kind="program"]').forEach(b=>b.onclick=()=>doSendProgram(friendId, b.dataset.id));
+  $("#modalBody").querySelectorAll('.opt[data-kind="day"]').forEach(b=>b.onclick=()=>doSendDay(friendId, b.dataset.id));
 }
 async function doSendProgram(friendId, programId){
   const p=data.programs.find(x=>x.id===programId); if(!p) return;
@@ -3453,6 +3468,20 @@ async function acceptShared(id){
 async function dismissShared(id){
   try{ await sb.from("shared_programs").update({status:"dismissed"}).eq("id", id);
     inboxCache=inboxCache.filter(x=>String(x.id)!==String(id)); renderInbox(); }
+  catch(e){ console.warn(e); toast("Couldn't dismiss"); }
+}
+async function acceptSharedDay(id){
+  const s=dayInboxCache.find(x=>String(x.id)===String(id)); if(!s) return;
+  try{
+    const day=unpackDay(s.day);
+    addImportedDay(day);
+    await sb.from("shared_days").update({status:"accepted"}).eq("id", id);
+    dayInboxCache=dayInboxCache.filter(x=>String(x.id)!==String(id)); renderInbox();
+  }catch(e){ console.warn(e); toast("Couldn't add day"); }
+}
+async function dismissSharedDay(id){
+  try{ await sb.from("shared_days").update({status:"dismissed"}).eq("id", id);
+    dayInboxCache=dayInboxCache.filter(x=>String(x.id)!==String(id)); renderInbox(); }
   catch(e){ console.warn(e); toast("Couldn't dismiss"); }
 }
 async function sendShareToFriend(programId){
@@ -3559,6 +3588,7 @@ function renderDayList(){
       <div style="display:flex;gap:16px;justify-content:center;margin-top:10px;flex-wrap:wrap">
         <button class="link start-day" data-id="${d.id}" style="color:var(--accent)">Start</button>
         <button class="link edit-day" data-id="${d.id}">Edit</button>
+        <button class="link share-day" data-id="${d.id}" style="color:var(--ss)">Share</button>
         <button class="link del-day" data-id="${d.id}" style="color:var(--danger)">Delete</button>
       </div></div>`:"";
     return `<div class="daycard">
@@ -3568,6 +3598,7 @@ function renderDayList(){
   box.querySelectorAll(".hx-head").forEach(h=>h.onclick=()=>{ const id=h.dataset.id; dayListOpen.has(id)?dayListOpen.delete(id):dayListOpen.add(id); renderDayList(); });
   box.querySelectorAll(".start-day").forEach(b=>b.onclick=e=>{ e.stopPropagation(); startStandaloneDay(b.dataset.id); });
   box.querySelectorAll(".edit-day").forEach(b=>b.onclick=e=>{ e.stopPropagation(); startDayBuild(b.dataset.id); });
+  box.querySelectorAll(".share-day").forEach(b=>b.onclick=e=>{ e.stopPropagation(); shareDay(b.dataset.id); });
   box.querySelectorAll(".del-day").forEach(b=>b.onclick=e=>{
     e.stopPropagation();
     const d=days.find(x=>x.id===b.dataset.id); if(!d) return;
@@ -4638,6 +4669,59 @@ function unpackProgram(o){
 function shareCode(p){ return LZString.compressToEncodedURIComponent(JSON.stringify(packProgram(p))); }
 function shareLink(p){ return location.origin + location.pathname + "#p=" + shareCode(p); }
 
+function packDay(d){ return {n:d.name,i:d.items.map(it=>{const o={n:it.name,s:it.sets,r:it.reps}; if(it.ssPrev)o.ss=1; return o;})}; }
+function unpackDay(o){
+  if(!o||!o.n||!Array.isArray(o.i)) throw new Error("bad");
+  return {id:uid(),name:String(o.n),
+    items:o.i.map(it=>({name:String(it.n||"Exercise"),sets:parseInt(it.s,10)||3,reps:parseInt(it.r,10)||5,ssPrev:!!it.ss}))};
+}
+function dayShareCode(d){ return LZString.compressToEncodedURIComponent(JSON.stringify(packDay(d))); }
+function dayShareLink(d){ return location.origin + location.pathname + "#d=" + dayShareCode(d); }
+
+function shareDay(id){
+  const d=(data.standaloneDays||[]).find(x=>x.id===id); if(!d) return;
+  const link=dayShareLink(d), code=dayShareCode(d);
+  let qrSvg="";
+  try{ const qr=qrcode(0,"L"); qr.addData(code); qr.make(); qrSvg=qr.createSvgTag({cellSize:6,margin:2}); }
+  catch(e){ qrSvg='<div class="modal-note">Day is large — use the link or code below.</div>'; }
+  openModal(`
+    <h2>Share “${esc(d.name)}”</h2>
+    <div class="modal-note">Have them scan this with their phone camera, or send the link.</div>
+    <div class="qr-box">${qrSvg}</div>
+    ${navigator.share?`<button class="btn" id="mShareD">Send link…</button>`:""}
+    ${ (sb && sbUser) ? `<button class="btn" id="mSendFriendD">Send to a friend</button>` : "" }
+    <button class="btn ghost" id="mCopyLinkD">Copy link</button>
+    <button class="btn ghost" id="mCopyCodeD">Copy code</button>
+    <div class="modal-note" style="margin-top:12px">Code (paste into “Import” on the other phone):</div>
+    <div class="code-box">${esc(code)}</div>
+  `);
+  const ms=$("#mShareD"); if(ms) ms.onclick=()=>{ navigator.share({title:"Iron Log day",text:`Import “${d.name}” into Iron Log:`,url:link}).catch(()=>{}); };
+  const msf=$("#mSendFriendD"); if(msf) msf.onclick=()=>sendDayShareToFriend(d.id);
+  $("#mCopyLinkD").onclick=()=>copyText(link,"Link copied");
+  $("#mCopyCodeD").onclick=()=>copyText(code,"Code copied");
+}
+function sendDayShareToFriend(dayId){
+  if(!socialOn()){ toast("Sign in to send to friends"); return; }
+  if(!friendsCache.length){
+    openModal('<h2 style="margin-top:0">No friends yet</h2><div class="modal-note">Add a friend by email on the Profile tab first, then you can send days to them.</div><button class="btn" id="fClose">OK</button>');
+    const c=$("#fClose"); if(c) c.onclick=closeModal;
+    return;
+  }
+  const d=(data.standaloneDays||[]).find(x=>x.id===dayId);
+  openModal('<h2 style="margin-top:0">Send to a friend</h2><div class="modal-note">Choose who gets “'+esc(d?d.name:"this day")+'”.</div><div id="sendWhoD">'
+    +friendsCache.map(fr=>'<button class="btn ghost opt" data-id="'+fr.user_id+'" style="width:100%;margin-top:6px">'+esc(socWho(fr))+'</button>').join("")
+    +'</div>');
+  $("#sendWhoD").querySelectorAll(".opt").forEach(b=>b.onclick=()=>doSendDay(b.dataset.id, dayId));
+}
+async function doSendDay(friendId, dayId){
+  const d=(data.standaloneDays||[]).find(x=>x.id===dayId); if(!d) return;
+  try{
+    const { data:res, error } = await sb.rpc("send_day_to_friend", { friend_id:friendId, p_name:d.name, p_day:packDay(d) });
+    if(error || res==="not_friends"){ toast("Couldn't send"); return; }
+    closeModal(); toast('Sent “'+d.name+'” ✓');
+  }catch(e){ console.warn(e); toast("Couldn't send"); }
+}
+
 function shareProgram(id){
   const p=data.programs.find(x=>x.id===id); if(!p) return;
   const link=shareLink(p), code=shareCode(p);
@@ -4670,10 +4754,10 @@ function fallbackCopy(t,done){ const ta=document.createElement("textarea"); ta.v
 
 function importPanel(){
   openModal(`
-    <h2>Import a program</h2>
+    <h2>Import a program or day</h2>
     <div class="modal-note">Paste a shared link or code from someone else, then import.</div>
     <textarea id="impText" placeholder="Paste link or code here"></textarea>
-    <button class="btn" id="impGo">Import program</button>
+    <button class="btn" id="impGo">Import</button>
   `);
   $("#impGo").onclick=()=>{
     const v=$("#impText").value.trim();
@@ -4683,11 +4767,14 @@ function importPanel(){
 }
 function importFromString(s){
   let code=s.trim();
-  const m=code.match(/[#?]p=([^&\s]+)/); if(m) code=m[1];
+  const mP=code.match(/[#?]p=([^&\s]+)/);
+  const mD=code.match(/[#?]d=([^&\s]+)/);
+  if(mP) code=mP[1]; else if(mD) code=mD[1];
   try{
     const obj=JSON.parse(LZString.decompressFromEncodedURIComponent(code));
-    const prog=unpackProgram(obj);
-    addImportedProgram(prog);
+    if(Array.isArray(obj.d)){ addImportedProgram(unpackProgram(obj)); }
+    else if(Array.isArray(obj.i)){ addImportedDay(unpackDay(obj)); }
+    else throw new Error("bad");
     return true;
   }catch(e){ toast("Couldn't read that code"); return false; }
 }
@@ -4697,22 +4784,46 @@ function addImportedProgram(prog){
   data.programs.push(prog); save(); renderProgramList(); openProgram(prog.id);
   toast(`Imported “${prog.name}” ✓`);
 }
+function addImportedDay(day){
+  if((data.standaloneDays||[]).some(x=>x.name.toLowerCase()===day.name.toLowerCase())) day.name+=" (imported)";
+  day.items.forEach(it=>findOrCreateExercise(it.name)); // register exercises for tracking
+  data.standaloneDays ||= []; data.standaloneDays.push(day); save(); renderDayList();
+  toast(`Imported “${day.name}” ✓`);
+}
 function checkIncomingShare(){
-  const m=(location.hash||"").match(/[#&]p=([^&]+)/);
-  if(!m) return;
+  const mP=(location.hash||"").match(/[#&]p=([^&]+)/);
+  const mD=(location.hash||"").match(/[#&]d=([^&]+)/);
+  if(!mP && !mD) return;
   const clear=()=>{ try{ history.replaceState(null,"",location.pathname+location.search); }catch(_){ location.hash=""; } };
-  try{
-    const prog=unpackProgram(JSON.parse(LZString.decompressFromEncodedURIComponent(m[1])));
-    clear();
-    openModal(`
-      <h2>Import shared program?</h2>
-      <div class="modal-note">Someone shared <b>“${esc(prog.name)}”</b> — ${prog.weeks} weeks, ${prog.days.length} day${prog.days.length===1?"":"s"}/week.</div>
-      <button class="btn" id="impAccept">Add to my programs</button>
-      <button class="btn ghost" id="impDecline">Not now</button>
-    `);
-    $("#impAccept").onclick=()=>{ addImportedProgram(prog); closeModal(); document.querySelector('nav button[data-tab="programs"]').click(); };
-    $("#impDecline").onclick=closeModal;
-  }catch(e){ clear(); }
+  if(mP){
+    try{
+      const prog=unpackProgram(JSON.parse(LZString.decompressFromEncodedURIComponent(mP[1])));
+      clear();
+      openModal(`
+        <h2>Import shared program?</h2>
+        <div class="modal-note">Someone shared <b>“${esc(prog.name)}”</b> — ${prog.weeks} weeks, ${prog.days.length} day${prog.days.length===1?"":"s"}/week.</div>
+        <button class="btn" id="impAccept">Add to my programs</button>
+        <button class="btn ghost" id="impDecline">Not now</button>
+      `);
+      $("#impAccept").onclick=()=>{ addImportedProgram(prog); closeModal(); document.querySelector('nav button[data-tab="programs"]').click(); };
+      $("#impDecline").onclick=closeModal;
+    }catch(e){ clear(); }
+    return;
+  }
+  if(mD){
+    try{
+      const day=unpackDay(JSON.parse(LZString.decompressFromEncodedURIComponent(mD[1])));
+      clear();
+      openModal(`
+        <h2>Import shared day?</h2>
+        <div class="modal-note">Someone shared <b>“${esc(day.name)}”</b> — ${day.items.length} exercise${day.items.length===1?"":"s"}.</div>
+        <button class="btn" id="impAcceptD">Add to my days</button>
+        <button class="btn ghost" id="impDeclineD">Not now</button>
+      `);
+      $("#impAcceptD").onclick=()=>{ addImportedDay(day); closeModal(); document.querySelector('nav button[data-tab="programs"]').click(); };
+      $("#impDeclineD").onclick=closeModal;
+    }catch(e){ clear(); }
+  }
 }
 
 function progCompletion(p){
