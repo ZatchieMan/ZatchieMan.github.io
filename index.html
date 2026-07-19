@@ -3830,9 +3830,21 @@ function renderLevel(){
     </svg>
   </div>` : "";
   const streak = weeklyStreak();
+  const flameD="M12 1C10.3 3.2 12.5 4.6 11 6.3C9.9 5 8.6 5.3 8.8 6.8C6 9.8 5 13.3 6 16.5C6.8 18.7 7.4 17.2 7.1 15.5C7.8 19 9.5 21.8 13 22C16.5 22.2 19.5 19.5 20.3 16.8C20 18.2 19.1 18.5 18.5 17.4C20.2 13.8 19.5 9.6 16.7 6.5C17.1 8.6 16 9 15.5 7.6C15.5 5 14 2.6 12 1Z";
   const streakIcon = streak>0 ? `<div class="lvl-streak" title="${streak}-week streak">
-    <svg viewBox="0 0 24 24" width="24" height="24">
-      <path d="M12 1C10.3 3.2 12.5 4.6 11 6.3C9.9 5 8.6 5.3 8.8 6.8C6 9.8 5 13.3 6 16.5C6.8 18.7 7.4 17.2 7.1 15.5C7.8 19 9.5 21.8 13 22C16.5 22.2 19.5 19.5 20.3 16.8C20 18.2 19.1 18.5 18.5 17.4C20.2 13.8 19.5 9.6 16.7 6.5C17.1 8.6 16 9 15.5 7.6C15.5 5 14 2.6 12 1Z" fill="#f5b301"/>
+    <svg viewBox="0 0 24 24" width="26" height="26">
+      <defs>
+        <linearGradient id="streakFlameGrad" x1="0" y1="1" x2="0" y2="0">
+          <stop offset="0%" stop-color="#e09a00"/>
+          <stop offset="45%" stop-color="#f5b301"/>
+          <stop offset="100%" stop-color="#ffcb3d"/>
+        </linearGradient>
+        <mask id="streakFlameMask">
+          <path d="${flameD}" fill="white"/>
+          <path d="${flameD}" fill="black" transform="translate(6.3,11.8) scale(0.45)"/>
+        </mask>
+      </defs>
+      <path d="${flameD}" fill="url(#streakFlameGrad)" stroke="#181510" stroke-width="0.6" mask="url(#streakFlameMask)"/>
     </svg>
     <span class="lvl-streak-n">${streak}</span>
   </div>` : "";
