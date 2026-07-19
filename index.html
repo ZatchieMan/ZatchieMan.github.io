@@ -3177,7 +3177,7 @@ async function fetchMyProfile(){
 function hasUsername(){ return !!(myProfile && myProfile.display_name && myProfile.display_name.trim()); }
 function isPremium(){ return !!(myProfile && myProfile.premium); }
 function premiumConfigured(){ return PREMIUM_PAYMENT_LINK.indexOf("REPLACE_ME")<0; }
-const FREE_PROGRAM_LIMIT = 1;
+const FREE_PROGRAM_LIMIT = 2;
 const FREE_HISTORY_DAYS = 90;
 function historyCutoffISO(){ return addDaysISO(todayISO(), -FREE_HISTORY_DAYS); }
 function openPaywall(reason){
@@ -5256,7 +5256,7 @@ $("#bSave").onclick=()=>{
   if(isNaN(weeks)||weeks<1){ toast("How many weeks?"); return; }
   if(!draft.days.length){ toast("Add at least one training day"); return; }
   if(draft._new && premiumConfigured() && !isPremium() && data.programs.length>=FREE_PROGRAM_LIMIT){
-    openPaywall("Free plan is limited to "+FREE_PROGRAM_LIMIT+" program at a time. Upgrade for unlimited programs.");
+    openPaywall("Free plan is limited to "+FREE_PROGRAM_LIMIT+" programs at a time. Upgrade for unlimited programs.");
     return;
   }
   const days=draft.days.map(d=>({id:d.id||uid(),name:d.name,weekdays:(d.weekdays||[]).slice(),items:d.items.map(it=>({name:it.name,sets:it.sets,reps:it.reps,ssPrev:!!it.ssPrev}))}));
