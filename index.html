@@ -3830,8 +3830,8 @@ function renderLevel(){
   const streak = weeklyStreak();
   const streakIcon = streak>0 ? `<div class="lvl-streak" title="${streak}-week streak">
     <svg viewBox="0 0 24 24" width="30" height="30">
-      <path d="M12 4C12 4 4.5 9.5 4.5 15C4.5 18.6 7.7 21.5 12 21.5C16.3 21.5 19.5 18.6 19.5 15C19.5 12.4 18 10.4 16.2 8.7C16.6 10.7 15.4 12.1 13.9 12.6C14.6 9.4 13.6 6.8 12 4Z" fill="#f5b301" stroke="#181510" stroke-width="0.75"/>
-      <text x="12" y="15.7" text-anchor="middle" dominant-baseline="middle" font-family="'Roboto Mono',monospace" font-weight="700" font-size="9.5" fill="#181510">${streak}</text>
+      <path d="M12 2.8C9.5 6.5 5.8 9.3 5.5 13.5C5.35 15.6 6.6 16.2 7.7 15C6.9 18 7.8 20.5 10.5 21.8C9.4 19.6 10 17.5 11.5 16.3C11 19.5 12.6 22 15.2 22.1C18.4 22.2 20.6 19.5 20.4 16.2C20.25 13.6 18.5 11.4 16.3 9.7C17 11.7 16 13.4 14.2 13.7C15.7 8.8 14 5 12 2.8Z" fill="#f5b301" stroke="#181510" stroke-width="0.7"/>
+      <text x="14.5" y="17.5" text-anchor="middle" dominant-baseline="middle" font-family="'Roboto Mono',monospace" font-weight="700" font-size="8.5" fill="#181510">${streak}</text>
     </svg>
   </div>` : "";
   box.innerHTML=`<div class="lvl-wrap">${ring}${token}${streakIcon}<div class="lvl-info">
