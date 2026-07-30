@@ -376,9 +376,8 @@
 
   <nav>
     <button data-tab="programs"><svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M16 2v4"/><path d="m9 16 2 2 4-4"/></svg><span>Programs</span></button>
-    <button data-tab="exercises"><svg viewBox="0 0 24 24"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg><span>Exercises</span></button>
-    <button data-tab="workout" class="active center"><svg viewBox="0 0 24 24"><path d="M14.4 14.4 9.6 9.6"/><path d="M18.657 21.485a2 2 0 1 1-2.829-2.828l-1.767 1.768a2 2 0 1 1-2.829-2.829l6.364-6.364a2 2 0 1 1 2.829 2.829l-1.768 1.767a2 2 0 1 1 2.828 2.829z"/><path d="M6.404 12.768a2 2 0 1 1-2.829-2.829l1.768-1.767a2 2 0 1 1-2.828-2.829l2.828-2.828a2 2 0 1 1 2.829 2.828l1.767-1.768a2 2 0 1 1 2.829 2.829z"/></svg><span>Workout</span></button>
     <button data-tab="progress"><svg viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg><span>Progress</span></button>
+    <button data-tab="workout" class="active center"><svg viewBox="0 0 24 24"><path d="M14.4 14.4 9.6 9.6"/><path d="M18.657 21.485a2 2 0 1 1-2.829-2.828l-1.767 1.768a2 2 0 1 1-2.829-2.829l6.364-6.364a2 2 0 1 1 2.829 2.829l-1.768 1.767a2 2 0 1 1 2.828 2.829z"/><path d="M6.404 12.768a2 2 0 1 1-2.829-2.829l1.768-1.767a2 2 0 1 1-2.828-2.829l2.828-2.828a2 2 0 1 1 2.829 2.828l1.767-1.768a2 2 0 1 1 2.829 2.829z"/></svg><span>Workout</span></button>
     <button data-tab="profile"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.5-7 8-7s8 3 8 7"/></svg><span>Profile</span></button>
   </nav>
 
@@ -486,18 +485,6 @@
       <span class="back" id="detailBack">← All programs</span>
       <div id="progDetailBody"></div>
     </div>
-  </section>
-
-  <!-- EXERCISES -->
-  <section id="tab-exercises" class="hidden">
-    <div class="card">
-      <h2>Add exercise</h2>
-      <div class="row">
-        <div><label>Name</label><input id="newExName" placeholder="e.g. Back Squat"></div>
-        <button class="btn" id="addExBtn">Add</button>
-      </div>
-    </div>
-    <div class="card"><h2>Your exercises</h2><div id="exerciseList"></div></div>
   </section>
 
   <!-- PROFILE -->
@@ -610,6 +597,14 @@
       <select id="progExercise"></select>
       <div id="progBody"></div>
     </div>
+    <div class="card">
+      <h2>Add exercise</h2>
+      <div class="row">
+        <div><label>Name</label><input id="newExName" placeholder="e.g. Back Squat"></div>
+        <button class="btn" id="addExBtn">Add</button>
+      </div>
+    </div>
+    <div class="card"><h2>Your exercises</h2><div id="exerciseList"></div></div>
   </section>
 
 </div>
