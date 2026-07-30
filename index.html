@@ -363,6 +363,12 @@
   .soc-who{min-width:0;flex:1;font-weight:600;font-size:15px}
   .soc-sub{font-weight:400;color:var(--muted);font-size:12px;overflow-wrap:anywhere;line-height:1.3;margin-top:1px}
   .soc-actions{display:flex;gap:6px;flex-shrink:0}
+  .friend-row{cursor:pointer}
+  .chat-messages{max-height:50vh;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:4px 2px}
+  .chat-msg{max-width:78%;padding:8px 12px;border-radius:12px;font-size:14px;line-height:1.35;overflow-wrap:anywhere}
+  .chat-msg.mine{align-self:flex-end;background:var(--accent);color:#181510;border-bottom-right-radius:3px}
+  .chat-msg.theirs{align-self:flex-start;background:var(--surface-2);border:1px solid var(--line);border-bottom-right-radius:12px;border-bottom-left-radius:3px}
+  .chat-msg .chat-time{display:block;font-size:10px;opacity:.65;margin-top:3px}
   .soc-btn{width:auto;padding:0 12px;height:34px;font-size:13px;display:inline-flex;align-items:center;justify-content:center}
 </style>
 
@@ -378,6 +384,7 @@
     <button data-tab="programs"><svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M16 2v4"/><path d="m9 16 2 2 4-4"/></svg><span>Programs</span></button>
     <button data-tab="progress"><svg viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg><span>Progress</span></button>
     <button data-tab="workout" class="active center"><svg viewBox="0 0 24 24"><path d="M14.4 14.4 9.6 9.6"/><path d="M18.657 21.485a2 2 0 1 1-2.829-2.828l-1.767 1.768a2 2 0 1 1-2.829-2.829l6.364-6.364a2 2 0 1 1 2.829 2.829l-1.768 1.767a2 2 0 1 1 2.828 2.829z"/><path d="M6.404 12.768a2 2 0 1 1-2.829-2.829l1.768-1.767a2 2 0 1 1-2.828-2.829l2.828-2.828a2 2 0 1 1 2.829 2.828l1.767-1.768a2 2 0 1 1 2.829 2.829z"/></svg><span>Workout</span></button>
+    <button data-tab="friends"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span>Friends</span></button>
     <button data-tab="profile"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.5-7 8-7s8 3 8 7"/></svg><span>Profile</span></button>
   </nav>
 
@@ -487,6 +494,23 @@
     </div>
   </section>
 
+  <!-- FRIENDS -->
+  <section id="tab-friends" class="hidden">
+    <div class="card" id="friendsCard" style="display:none">
+      <h2>Friends</h2>
+      <div style="display:flex;gap:8px;margin-bottom:6px">
+        <input id="friendEmail" class="num-in" type="email" inputmode="email" autocomplete="off" placeholder="friend@email.com" style="flex:1;min-width:0">
+        <button class="btn" id="addFriendBtn" style="width:auto;padding:0 18px">Add</button>
+      </div>
+      <div class="modal-note" style="margin:0 0 4px">Send a friend request by email. They'll appear here once they accept.</div>
+      <div id="friendReqs"></div>
+      <div id="friendList"></div>
+    </div>
+    <div class="card" id="friendsSignedOutCard">
+      <div class="empty">Sign in on the Profile tab to add friends, chat, and see what they're training.</div>
+    </div>
+  </section>
+
   <!-- PROFILE -->
   <section id="tab-profile" class="hidden">
     <div id="pfMainView">
@@ -522,16 +546,6 @@
         </div>
       </div>
       <div class="card"><h2>Weight history</h2><div id="pfChart"></div></div>
-      <div class="card" id="friendsCard" style="display:none">
-        <h2>Friends</h2>
-        <div style="display:flex;gap:8px;margin-bottom:6px">
-          <input id="friendEmail" class="num-in" type="email" inputmode="email" autocomplete="off" placeholder="friend@email.com" style="flex:1;min-width:0">
-          <button class="btn" id="addFriendBtn" style="width:auto;padding:0 18px">Add</button>
-        </div>
-        <div class="modal-note" style="margin:0 0 4px">Send a friend request by email. They'll appear here once they accept.</div>
-        <div id="friendReqs"></div>
-        <div id="friendList"></div>
-      </div>
       <div class="card" id="pfAccount" style="display:flex;align-items:center;gap:12px">
         <img id="pfAvatar" alt="" referrerpolicy="no-referrer" style="width:44px;height:44px;border-radius:50%;object-fit:cover;background:var(--surface-2);flex-shrink:0;display:none">
         <div style="min-width:0;flex:1">
@@ -3168,10 +3182,15 @@ async function onSignedIn(){
   refreshWeeklyChampionStatus();
   ensurePushSubscriptionSynced();
 }
+function programsSummaryForSync(){
+  const progs=(data.programs||[]).map(p=>({name:p.name, meta:p.weeks+" wks · "+p.days.length+" day"+(p.days.length===1?"":"s")+"/wk"}));
+  const days=(data.standaloneDays||[]).map(d=>({name:d.name, meta:d.items.length+" exercise"+(d.items.length===1?"":"s")}));
+  return progs.concat(days);
+}
 async function upsertMyProfile(name){
   if(!socialOn()) return;
   const li=levelInfo();
-  try{ await sb.rpc("upsert_my_profile", { p_display_name: (typeof name==="string" ? name : null), p_xp: li.xp, p_level: li.level, p_weekly_xp: weeklyXP(), p_week_start: currentWeekStart() }); }
+  try{ await sb.rpc("upsert_my_profile", { p_display_name: (typeof name==="string" ? name : null), p_xp: li.xp, p_level: li.level, p_weekly_xp: weeklyXP(), p_week_start: currentWeekStart(), p_prs: data.prs||{}, p_streak: weeklyStreak(), p_programs: programsSummaryForSync() }); }
   catch(e){ console.warn("profile upsert failed", e); }
 }
 async function fetchMyProfile(){
@@ -3379,6 +3398,7 @@ async function openLeaderboard(){
 function renderFriends(){
   const card=$("#friendsCard"); if(!card) return;
   card.style.display = socialOn() ? "" : "none";
+  const outCard=$("#friendsSignedOutCard"); if(outCard) outCard.style.display = socialOn() ? "none" : "";
   const reqBox=$("#friendReqs");
   if(reqBox){
     reqBox.innerHTML = reqCache.length
@@ -3394,11 +3414,100 @@ function renderFriends(){
   if(listBox){
     listBox.innerHTML = friendsCache.length
       ? '<div class="soc-label">Your friends</div>' + friendsCache.map(fr=>
-          '<div class="soc-row"><div class="soc-who">'+esc(socWho(fr))+'<div class="soc-sub">'+esc(fr.email||"")+'</div></div>'
-          +'<div class="soc-actions"><button class="btn soc-btn f-send" data-id="'+fr.user_id+'">Send</button></div></div>').join("")
+          '<div class="soc-row friend-row" data-id="'+fr.user_id+'"><div class="soc-who">'+esc(socWho(fr))+'<div class="soc-sub">'+esc(fr.email||"")+'</div></div>'
+          +'<div class="soc-actions"><button class="btn ghost soc-btn f-chat" data-id="'+fr.user_id+'">Chat</button><button class="btn soc-btn f-send" data-id="'+fr.user_id+'">Send</button></div></div>').join("")
       : '<div class="empty" style="padding:6px 0">No friends yet. Add one by email above.</div>';
-    listBox.querySelectorAll(".f-send").forEach(b=>b.onclick=()=>pickProgramForFriend(b.dataset.id));
+    listBox.querySelectorAll(".friend-row").forEach(r=>r.onclick=()=>openFriendProfile(r.dataset.id));
+    listBox.querySelectorAll(".f-send").forEach(b=>b.onclick=e=>{ e.stopPropagation(); pickProgramForFriend(b.dataset.id); });
+    listBox.querySelectorAll(".f-chat").forEach(b=>b.onclick=e=>{ e.stopPropagation(); openChat(b.dataset.id); });
   }
+}
+async function openFriendProfile(friendId){
+  const fr=friendsCache.find(f=>f.user_id===friendId);
+  openModal(`<h2 style="margin-top:0">${esc(socWho(fr||{}))}</h2><div id="friendProfileBody"><div class="empty">Loading…</div></div>`);
+  try{
+    const { data:row, error } = await sb.from("profiles").select("display_name,email,xp,level,streak,prs,programs_summary").eq("user_id", friendId).maybeSingle();
+    if(error || !row) throw error||new Error("not found");
+    renderFriendProfile(row);
+  }catch(e){ console.warn(e); const b=$("#friendProfileBody"); if(b) b.innerHTML='<div class="empty">Couldn\'t load their profile.</div>'; }
+}
+function renderFriendProfile(row){
+  const box=$("#friendProfileBody"); if(!box) return;
+  const prs=row.prs||{};
+  const prNames={bench:"Bench",deadlift:"Deadlift",squat:"Squat"};
+  const prRows=Object.keys(prNames).map(k=>{
+    const w=prs[k];
+    return `<div class="pf-row"><span class="pf-label">${prNames[k]}</span><span class="pf-value">${w?fromKg(w)+" "+weightUnit():"—"}</span></div>`;
+  }).join("");
+  const progs=row.programs_summary||[];
+  const progHTML=progs.length
+    ? progs.map(p=>`<div class="pf-row"><span class="pf-label">${esc(p.name)}</span><span class="pf-value">${esc(p.meta||"")}</span></div>`).join("")
+    : '<div class="empty">No programs or days yet.</div>';
+  const streak=row.streak||0;
+  box.innerHTML = `
+    <div class="pf-row"><span class="pf-label">Level</span><span class="pf-value">${row.level||1}</span></div>
+    <div class="pf-row"><span class="pf-label">XP</span><span class="pf-value">${(row.xp||0).toLocaleString()}</span></div>
+    <div class="pf-row"><span class="pf-label">Streak</span><span class="pf-value">${streak} week${streak===1?"":"s"}</span></div>
+    <div class="soc-label" style="margin-top:14px">Personal records</div>
+    ${prRows}
+    <div class="soc-label" style="margin-top:14px">Programs &amp; days</div>
+    ${progHTML}
+  `;
+}
+let chatChannel=null, chatWithId=null;
+async function openChat(friendId){
+  chatWithId=friendId;
+  const fr=friendsCache.find(f=>f.user_id===friendId);
+  openModal(`<h2 style="margin-top:0">${esc(socWho(fr||{}))}</h2>
+    <div id="chatMessages" class="chat-messages"><div class="empty">Loading…</div></div>
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <input id="chatInput" placeholder="Message…" style="flex:1" autocomplete="off">
+      <button class="btn" id="chatSendBtn" style="width:auto">Send</button>
+    </div>`);
+  await loadChatHistory(friendId);
+  subscribeChat(friendId);
+  $("#chatSendBtn").onclick=sendChatMessage;
+  $("#chatInput").addEventListener("keydown", e=>{ if(e.key==="Enter") sendChatMessage(); });
+}
+function chatBubbleHTML(m){
+  const mine=m.from_user===sbUser.id;
+  const time=new Date(m.created_at).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"});
+  return `<div class="chat-msg ${mine?"mine":"theirs"}">${esc(m.body)}<span class="chat-time">${time}</span></div>`;
+}
+async function loadChatHistory(friendId){
+  const box=$("#chatMessages"); if(!box) return;
+  try{
+    const { data:rows, error } = await sb.from("messages").select("id,from_user,to_user,body,created_at")
+      .or(`and(from_user.eq.${sbUser.id},to_user.eq.${friendId}),and(from_user.eq.${friendId},to_user.eq.${sbUser.id})`)
+      .order("created_at",{ascending:true});
+    if(error) throw error;
+    box.innerHTML = (rows&&rows.length) ? rows.map(chatBubbleHTML).join("") : '<div class="empty">No messages yet. Say hi!</div>';
+    box.scrollTop=box.scrollHeight;
+  }catch(e){ console.warn(e); box.innerHTML='<div class="empty">Couldn\'t load messages.</div>'; }
+}
+function subscribeChat(friendId){
+  if(chatChannel){ sb.removeChannel(chatChannel); chatChannel=null; }
+  chatChannel = sb.channel("chat-"+[sbUser.id,friendId].sort().join("-"))
+    .on("postgres_changes", { event:"INSERT", schema:"public", table:"messages" }, payload=>{
+      const m=payload.new;
+      const relevant=(m.from_user===sbUser.id&&m.to_user===friendId)||(m.from_user===friendId&&m.to_user===sbUser.id);
+      if(!relevant) return;
+      const box=$("#chatMessages"); if(!box) return;
+      const empty=box.querySelector(".empty"); if(empty) empty.remove();
+      box.insertAdjacentHTML("beforeend", chatBubbleHTML(m));
+      box.scrollTop=box.scrollHeight;
+    })
+    .subscribe();
+}
+async function sendChatMessage(){
+  const input=$("#chatInput"); if(!input) return;
+  const body=(input.value||"").trim();
+  if(!body||!chatWithId) return;
+  input.value="";
+  try{
+    const { error } = await sb.from("messages").insert({ from_user:sbUser.id, to_user:chatWithId, body });
+    if(error) throw error;
+  }catch(e){ console.warn(e); toast("Couldn't send message"); }
 }
 function renderInbox(){
   const card=$("#inboxCard"); if(!card) return;
@@ -4688,7 +4797,10 @@ function renderProgress(){
 /* ---------- programs ---------- */
 /* ---------- share / import programs (link + QR, no server) ---------- */
 function openModal(html){ $("#modalBody").innerHTML=html; $("#modal").classList.remove("hidden"); }
-function closeModal(){ $("#modal").classList.add("hidden"); $("#modalBody").innerHTML=""; }
+function closeModal(){
+  $("#modal").classList.add("hidden"); $("#modalBody").innerHTML="";
+  if(chatChannel){ sb.removeChannel(chatChannel); chatChannel=null; chatWithId=null; }
+}
 function openFeedbackModal(){
   openModal(`
     <h2 style="margin-top:0">Send Feedback</h2>
@@ -5318,6 +5430,7 @@ document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{
   if(b.dataset.tab==="workout"){ active?showActive():showStart(); }
   if(b.dataset.tab==="progress") renderProgress();
   if(b.dataset.tab==="profile"){ renderProfile(); refreshSocial(); }
+  if(b.dataset.tab==="friends") refreshSocial();
   if(b.dataset.tab==="programs"){
     refreshSocial();
     if(data.lastProgramId && data.programs.some(p=>p.id===data.lastProgramId)) openProgram(data.lastProgramId);
