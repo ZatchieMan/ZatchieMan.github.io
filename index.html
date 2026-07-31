@@ -590,6 +590,12 @@
           <button class="bw-toggle" id="weightReminderToggle">Off</button>
         </div>
       </div>
+      <div class="card" id="messageNotifCard" style="display:none">
+        <div class="ex-menu-row">
+          <div style="flex:1"><div class="name">Message notifications</div><div class="meta">Get notified when a friend sends you a message.</div></div>
+          <button class="bw-toggle" id="messageNotifToggle">Off</button>
+        </div>
+      </div>
       <div class="card">
         <h2>Data</h2>
         <button class="btn ghost" id="exportBtn" style="width:100%">Export CSV</button>
@@ -4487,6 +4493,7 @@ function renderProfile(){
   }
   renderReminderCard();
   renderWeightReminderCard();
+  renderMessageNotifCard();
   renderUnitToggle();
   renderPremiumCard();
   if($("#deleteAccountBtn")) $("#deleteAccountBtn").style.display = socialOn() ? "" : "none";
@@ -4592,20 +4599,21 @@ async function enablePush(){
 async function ensurePushSubscriptionSynced(){
   if(!socialOn() || !reminderPushSupported()) return;
   const pf=data.profile||{};
-  const needed = (pf.reminder&&pf.reminder.enabled) || (pf.weightReminder&&pf.weightReminder.enabled);
+  const needed = (pf.reminder&&pf.reminder.enabled) || (pf.weightReminder&&pf.weightReminder.enabled) || (pf.messageNotifications&&pf.messageNotifications.enabled);
   if(!needed) return;
   if(Notification.permission!=="granted"){
     let changed=false;
     if(pf.reminder&&pf.reminder.enabled){ pf.reminder.enabled=false; changed=true; }
     if(pf.weightReminder&&pf.weightReminder.enabled){ pf.weightReminder.enabled=false; changed=true; }
-    if(changed){ save(); renderReminderCard(); renderWeightReminderCard(); }
+    if(pf.messageNotifications&&pf.messageNotifications.enabled){ pf.messageNotifications.enabled=false; changed=true; }
+    if(changed){ save(); renderReminderCard(); renderWeightReminderCard(); renderMessageNotifCard(); }
     return;
   }
   try{ await subscribeAndSyncPush(); }catch(e){ console.warn("push resync failed", e); }
 }
 async function maybeRemovePush(){
   const pf=data.profile||{};
-  const stillNeeded = (pf.reminder&&pf.reminder.enabled) || (pf.weightReminder&&pf.weightReminder.enabled);
+  const stillNeeded = (pf.reminder&&pf.reminder.enabled) || (pf.weightReminder&&pf.weightReminder.enabled) || (pf.messageNotifications&&pf.messageNotifications.enabled);
   if(stillNeeded) return;
   try{
     const reg=await navigator.serviceWorker.ready;
@@ -4660,6 +4668,32 @@ async function toggleWeightReminder(){
     toast("Weight reminder disabled");
   }
   save(); renderWeightReminderCard();
+}
+function renderMessageNotifCard(){
+  const card=$("#messageNotifCard"); if(!card) return;
+  if(!socialOn() || !reminderPushSupported()){ card.style.display="none"; return; }
+  card.style.display="";
+  const pf=data.profile||(data.profile={});
+  const mn=pf.messageNotifications||(pf.messageNotifications={enabled:false});
+  const btn=$("#messageNotifToggle");
+  btn.className="bw-toggle"+(mn.enabled?" on":"");
+  btn.textContent=mn.enabled?"On":"Off";
+}
+async function toggleMessageNotifications(){
+  const pf=data.profile||(data.profile={});
+  const mn=pf.messageNotifications||(pf.messageNotifications={enabled:false});
+  if(!mn.enabled){
+    const ok=await enablePush();
+    if(!ok) return;
+    mn.enabled=true;
+    trackEvent("message_notifications_enabled", {});
+    toast("Message notifications enabled ✓");
+  } else {
+    mn.enabled=false;
+    await maybeRemovePush();
+    toast("Message notifications disabled");
+  }
+  save(); renderMessageNotifCard();
 }
 
 /* ---------- exercises ---------- */
@@ -5337,6 +5371,7 @@ if($("#feedbackBtn")) $("#feedbackBtn").onclick=openFeedbackModal;
 if($("#leaderboardBtn")) $("#leaderboardBtn").onclick=openLeaderboard;
 if($("#reminderToggle")) $("#reminderToggle").onclick=toggleReminders;
 if($("#weightReminderToggle")) $("#weightReminderToggle").onclick=toggleWeightReminder;
+if($("#messageNotifToggle")) $("#messageNotifToggle").onclick=toggleMessageNotifications;
 if($("#weightReminderTime")) $("#weightReminderTime").onchange=()=>{
   const pf=data.profile||(data.profile={});
   const wr=pf.weightReminder; if(!wr||!wr.enabled) return;

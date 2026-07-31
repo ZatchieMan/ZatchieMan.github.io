@@ -66,7 +66,9 @@ self.addEventListener("fetch", function (e) {
   );
 });
 
-/* Workout-reminder push notifications, sent by the send-workout-reminders Supabase Edge Function. */
+/* Push notifications: workout/weight reminders (send-workout-reminders) and
+   chat messages (send-message-notification). tag is per-payload so a new
+   chat message never collapses a pending reminder notification or vice versa. */
 self.addEventListener("push", function (e) {
   var data = {};
   try { data = e.data ? e.data.json() : {}; } catch (_) {}
@@ -75,7 +77,7 @@ self.addEventListener("push", function (e) {
       body: data.body || "Time for your workout!",
       icon: "/icon-192.png",
       badge: "/icon-badge.png",
-      tag: "workout-reminder"
+      tag: data.tag || "workout-reminder"
     })
   );
 });
